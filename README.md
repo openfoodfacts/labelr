@@ -17,50 +17,22 @@ It currently allows to:
 ## Installation
 
 Python 3.10 or higher is required to run this CLI.
-You need to install the CLI manually for now, there is no project published on Pypi.
-To do so:
 
+To install the CLI, simply run:
+
+```bash
+pip install labelr
+```
 We recommend to install the CLI in a virtual environment. You can either use pip or conda for that.
 
-### Pip
+There are two optional dependencies that you can install to use the CLI:
+- `ultralytics`: pre-annotate object detection datasets with an ultralytics model (yolo, yolo-world)
+- `triton`: pre-annotate object detection datasets using a model served by a Triton inference server
 
-Create the virtualenv:
-
-```bash
-python3 -m venv labelr
-source labelr/bin/activate
-```
-### Conda
-
-With conda:
-```bash
-conda create -n labelr python=3.12
-conda activate labelr
-```
-
-Then, clone the repository and install the requirements:
+To install the optional dependencies, you can run:
 
 ```bash
-git clone git@github.com:openfoodfacts/openfoodfacts-ai.git
-```
-
-```bash
-pip install -r requirements.txt
-```
-
-We assume in the following that you have installed the CLI in a virtual environment, and defined the following alias in your shell configuration file (e.g. `.bashrc` or `.zshrc`):
-
-```bash
-alias labelr='${VIRTUALENV_DIR}/bin/python3 ${PROJECT_PATH}/main.py'
-```
-or if you are using conda:
-```bash
-alias labelr='${CONDA_PREFIX}/bin/python3 ${PROJECT_PATH}/main.py'
-``` 
-
-with `${VIRTUALENV_DIR}` the path to the virtual environment where you installed the CLI and `${PROJECT_PATH}` the path to the root of the project, for example:
-```bash
-${PROJECT_PATH} = /home/user/openfoodfacts-ai/ml_utils/ml_utils_cli
+pip install labelr[ultralytics,triton]
 ```
 
 ## Usage
