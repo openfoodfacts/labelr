@@ -21,3 +21,6 @@ ultralytics = [
 triton = [
     "tritonclient>=2.52.0",
 ]
+
+[tool.uv]
+package = true
