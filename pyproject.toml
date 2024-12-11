@@ -23,6 +23,7 @@ ultralytics = [
 ]
 triton = [
     "tritonclient>=2.52.0",
+    "openfoodfacts[ml]>=2.3.4",
 ]
 
 [tool.uv]

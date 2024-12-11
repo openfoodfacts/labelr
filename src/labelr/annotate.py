@@ -4,17 +4,17 @@ import string
 from openfoodfacts.utils import get_logger
 
 try:
+    from openfoodfacts.ml.object_detection import ObjectDetectionRawResult
     from ultralytics.engine.results import Results
 except ImportError:
     pass
 
-from labelr.triton.object_detection import ObjectDetectionResult
 
 logger = get_logger(__name__)
 
 
 def format_annotation_results_from_triton(
-    objects: list[ObjectDetectionResult], image_width: int, image_height: int
+    objects: list["ObjectDetectionRawResult"], image_width: int, image_height: int
 ):
     """Format annotation results from a Triton object detection model into
     Label Studio format."""
