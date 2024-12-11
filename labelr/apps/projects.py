@@ -208,11 +208,9 @@ def add_prediction(
         ),
     ] = False,
     error_raise: Annotated[
-            bool,
-            typer.Option(
-                help="Raise an error if image download fails"
-            ),
-        ] = True,
+        bool,
+        typer.Option(help="Raise an error if image download fails"),
+    ] = True,
     model_version: Annotated[
         Optional[str],
         typer.Option(help="Model version to use for the prediction"),
@@ -222,9 +220,10 @@ def add_prediction(
     for an object detection model running on Triton Inference Server."""
 
     import tqdm
-    from cli.triton.object_detection import ObjectDetectionModelRegistry
     from label_studio_sdk.client import LabelStudio
     from openfoodfacts.utils import get_image_from_url
+
+    from labelr.triton.object_detection import ObjectDetectionModelRegistry
 
     label_mapping_dict = None
     if label_mapping:
@@ -320,9 +319,10 @@ def create_dataset_file(
     from urllib.parse import urlparse
 
     import tqdm
-    from cli.sample import format_object_detection_sample_to_ls
     from openfoodfacts.images import extract_barcode_from_url, extract_source_from_url
     from openfoodfacts.utils import get_image_from_url
+
+    from labelr.sample import format_object_detection_sample_to_ls
 
     logger.info("Loading dataset: %s", input_file)
 

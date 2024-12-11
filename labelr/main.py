@@ -1,12 +1,12 @@
 from typing import Annotated, Optional
 
 import typer
-from cli.apps import datasets as dataset_app
-from cli.apps import projects as project_app
-from cli.apps import users as user_app
-from cli.config import LABEL_STUDIO_DEFAULT_URL
-
 from openfoodfacts.utils import get_logger
+
+from labelr.apps import datasets as dataset_app
+from labelr.apps import projects as project_app
+from labelr.apps import users as user_app
+from labelr.config import LABEL_STUDIO_DEFAULT_URL
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
 
@@ -24,9 +24,9 @@ def predict_object(
     ],
     threshold: float = 0.5,
 ):
-    from cli.triton.object_detection import ObjectDetectionModelRegistry
-
     from openfoodfacts.utils import get_image_from_url
+
+    from labelr.triton.object_detection import ObjectDetectionModelRegistry
 
     model = ObjectDetectionModelRegistry.get(model_name)
     image = get_image_from_url(image_url)
@@ -53,7 +53,6 @@ def skip_rotated_images(
     import tqdm
     from label_studio_sdk.client import LabelStudio
     from label_studio_sdk.types.task import Task
-
     from openfoodfacts.ocr import OCRResult
 
     session = requests.Session()

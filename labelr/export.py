@@ -8,10 +8,11 @@ from pathlib import Path
 
 import datasets
 import tqdm
-from cli.sample import HF_DS_FEATURES, format_object_detection_sample_to_hf
 from label_studio_sdk.client import LabelStudio
 from openfoodfacts.images import download_image
 from PIL import Image
+
+from labelr.sample import HF_DS_FEATURES, format_object_detection_sample_to_hf
 
 logger = logging.getLogger(__name__)
 
@@ -162,7 +163,9 @@ def export_from_ls_to_ultralytics(
                     has_valid_annotation = True
 
         if has_valid_annotation:
-            download_output = download_image(image_url, return_bytes=True, error_raise=error_raise)
+            download_output = download_image(
+                image_url, return_bytes=True, error_raise=error_raise
+            )
             if download_output is None:
                 logger.error("Failed to download image: %s", image_url)
                 continue
@@ -183,9 +186,10 @@ def export_from_ls_to_ultralytics(
 
 
 def export_from_hf_to_ultralytics(
-        repo_id: str, output_dir: Path,
-        download_images: bool = True,
-        error_raise: bool = True,
+    repo_id: str,
+    output_dir: Path,
+    download_images: bool = True,
+    error_raise: bool = True,
 ):
     """Export annotations from a Hugging Face dataset project to the
     Ultralytics format.
@@ -210,7 +214,9 @@ def export_from_hf_to_ultralytics(
             image_url = sample["meta"]["image_url"]
 
             if download_images:
-                download_output = download_image(image_url, return_bytes=True, error_raise=error_raise)
+                download_output = download_image(
+                    image_url, return_bytes=True, error_raise=error_raise
+                )
                 if download_output is None:
                     logger.error("Failed to download image: %s", image_url)
                     continue

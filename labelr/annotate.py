@@ -1,9 +1,14 @@
 import random
 import string
 
-from cli.triton.object_detection import ObjectDetectionResult
 from openfoodfacts.utils import get_logger
-from ultralytics.engine.results import Results
+
+try:
+    from ultralytics.engine.results import Results
+except ImportError:
+    pass
+
+from labelr.triton.object_detection import ObjectDetectionResult
 
 logger = get_logger(__name__)
 
@@ -54,7 +59,7 @@ def format_annotation_results_from_triton(
 
 
 def format_annotation_results_from_ultralytics(
-    results: Results,
+    results: "Results",
     labels: list[str],
     label_mapping: dict[str, str] | None = None,
 ) -> list[dict]:

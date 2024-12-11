@@ -1,6 +1,6 @@
-# ML CLI
+# Labelr
 
-This is a command line interface that aims to provide a set of tools to help data scientists and machine learning engineers to deal with ML data annotation, data preprocessing and format conversion.
+Labelr a command line interface that aims to provide a set of tools to help data scientists and machine learning engineers to deal with ML data annotation, data preprocessing and format conversion.
 
 This project started as a way to automate some of the tasks we do at Open Food Facts to manage data at different stages of the machine learning pipeline.
 
@@ -16,14 +16,26 @@ It currently allows to:
 
 ## Installation
 
-Python 3.9 or higher is required to run this CLI.
+Python 3.10 or higher is required to run this CLI.
 You need to install the CLI manually for now, there is no project published on Pypi.
 To do so:
 
-We recommend to install the CLI in a virtual environment. First, create a virtual environment using conda:
+We recommend to install the CLI in a virtual environment. You can either use pip or conda for that.
+
+### Pip
+
+Create the virtualenv:
+
 ```bash
-conda create -n ml-cli python=3.12
-conda activate ml-cli
+python3 -m venv labelr
+source labelr/bin/activate
+```
+### Conda
+
+With conda:
+```bash
+conda create -n labelr python=3.12
+conda activate labelr
 ```
 
 Then, clone the repository and install the requirements:
@@ -33,21 +45,17 @@ git clone git@github.com:openfoodfacts/openfoodfacts-ai.git
 ```
 
 ```bash
-python3 -m pip install -r requirements.txt
-```
-or if you are using conda:
-```bash
 pip install -r requirements.txt
 ```
 
 We assume in the following that you have installed the CLI in a virtual environment, and defined the following alias in your shell configuration file (e.g. `.bashrc` or `.zshrc`):
 
 ```bash
-alias ml-cli='${VIRTUALENV_DIR}/bin/python3 ${PROJECT_PATH}/main.py'
+alias labelr='${VIRTUALENV_DIR}/bin/python3 ${PROJECT_PATH}/main.py'
 ```
 or if you are using conda:
 ```bash
-alias ml-cli='${CONDA_PREFIX}/bin/python3 ${PROJECT_PATH}/main.py'
+alias labelr='${CONDA_PREFIX}/bin/python3 ${PROJECT_PATH}/main.py'
 ``` 
 
 with `${VIRTUALENV_DIR}` the path to the virtual environment where you installed the CLI and `${PROJECT_PATH}` the path to the root of the project, for example:
@@ -70,7 +78,7 @@ For all the commands that interact with Label Studio, you need to provide an API
 Once you have a Label Studio instance running, you can create a project with the following command:
 
 ```bash
-ml-cli projects create --title my_project --api-key API_KEY --config-file label_config.xml
+labelr projects create --title my_project --api-key API_KEY --config-file label_config.xml
 ```
 
 where `API_KEY` is the API key of the Label Studio instance (API key is available at Account page), and `label_config.xml` is the configuration file of the project.
@@ -80,7 +88,7 @@ where `API_KEY` is the API key of the Label Studio instance (API key is availabl
 If you have a list of images, for an object detection task, you can quickly create a dataset file with the following command:
 
 ```bash
-ml-cli projects create-dataset-file --input-file image_urls.txt --output-file dataset.json
+labelr projects create-dataset-file --input-file image_urls.txt --output-file dataset.json
 ```
 
 where `image_urls.txt` is a file containing the URLs of the images, one per line, and `dataset.json` is the output file.
@@ -90,7 +98,7 @@ where `image_urls.txt` is a file containing the URLs of the images, one per line
 Next, import the generated data to a project with the following command:
 
 ```bash
-ml-cli projects import-data --project-id PROJECT_ID --dataset-path dataset.json
+labelr projects import-data --project-id PROJECT_ID --dataset-path dataset.json
 ```
 
 where `PROJECT_ID` is the ID of the project you created.
@@ -106,7 +114,7 @@ To accelerate annotation, you can pre-annotate the images with an object detecti
 To pre-annotate the data with Triton, use the following command:
 
 ```bash
-ml-cli projects add-prediction --project-id PROJECT_ID --backend ultralytics --labels 'product' --labels 'price tag' --label-mapping '{"price tag": "price-tag"}'
+labelr projects add-prediction --project-id PROJECT_ID --backend ultralytics --labels 'product' --labels 'price tag' --label-mapping '{"price tag": "price-tag"}'
 ```
 
 where `labels` is the list of labels to use for the object detection task (you can add as many labels as you want).
@@ -119,7 +127,7 @@ By default, for Ultralytics, the `yolov8x-worldv2.pt` model is used. You can cha
 Once the data is annotated, you can export it to a Hugging Face dataset or to local disk (Ultralytics format). To export it to disk, use the following command:
 
 ```bash
-ml-cli datasets export --project-id PROJECT_ID --from ls --to ultralytics --output-dir output --label-names 'product,price-tag'
+labelr datasets export --project-id PROJECT_ID --from ls --to ultralytics --output-dir output --label-names 'product,price-tag'
 ```
 
 where `output` is the directory where the data will be exported. Currently, label names must be provided, as the CLI does not support exporting label names from Label Studio yet.
@@ -127,7 +135,7 @@ where `output` is the directory where the data will be exported. Currently, labe
 To export the data to a Hugging Face dataset, use the following command:
 
 ```bash
-ml-cli datasets export --project-id PROJECT_ID --from ls --to huggingface --repo-id REPO_ID --label-names 'product,price-tag'
+labelr datasets export --project-id PROJECT_ID --from ls --to huggingface --repo-id REPO_ID --label-names 'product,price-tag'
 ```
 
 where `REPO_ID` is the ID of the Hugging Face repository where the dataset will be uploaded (ex: `openfoodfacts/food-detection`).

@@ -107,8 +107,9 @@ def convert_object_detection_dataset(
 ):
     """Convert object detection dataset from Hugging Face Datasets to Label
     Studio format, and save it to a JSON file."""
-    from cli.sample import format_object_detection_sample_from_hf
     from datasets import load_dataset
+
+    from labelr.sample import format_object_detection_sample_from_hf
 
     logger.info("Loading dataset: %s", repo_id)
     ds = load_dataset(repo_id)
@@ -167,12 +168,13 @@ def export(
 ):
     """Export Label Studio annotation, either to Hugging Face Datasets or
     local files (ultralytics format)."""
-    from cli.export import (
+    from label_studio_sdk.client import LabelStudio
+
+    from labelr.export import (
         export_from_hf_to_ultralytics,
         export_from_ls_to_hf,
         export_from_ls_to_ultralytics,
     )
-    from label_studio_sdk.client import LabelStudio
 
     if (to == ExportDestination.hf or from_ == ExportSource.hf) and repo_id is None:
         raise typer.BadParameter("Repository ID is required for export/import with HF")

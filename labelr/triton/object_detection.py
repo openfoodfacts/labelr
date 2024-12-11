@@ -4,11 +4,15 @@ import logging
 import time
 from typing import Any, Optional
 
-import grpc
 import numpy as np
 from PIL import Image
-from tritonclient.grpc import service_pb2, service_pb2_grpc
-from tritonclient.grpc.service_pb2_grpc import GRPCInferenceServiceStub
+
+try:
+    import grpc
+    from tritonclient.grpc import service_pb2, service_pb2_grpc
+    from tritonclient.grpc.service_pb2_grpc import GRPCInferenceServiceStub
+except ImportError:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +42,7 @@ OBJECT_DETECTION_IMAGE_MAX_SIZE = (1024, 1024)
 @functools.cache
 def get_triton_inference_stub(
     triton_uri: str,
-) -> GRPCInferenceServiceStub:
+) -> "GRPCInferenceServiceStub":
     """Return a gRPC stub for Triton Inference Server.
 
     :param triton_uri: URI of the Triton Inference Server
