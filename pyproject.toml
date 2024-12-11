@@ -14,6 +14,9 @@ dependencies = [
     "typer>=0.15.1",
 ]
 
+[project.scripts]
+labelr = "labelr.main:app"
+
 [project.optional-dependencies]
 ultralytics = [
     "ultralytics>=8.3.49",
