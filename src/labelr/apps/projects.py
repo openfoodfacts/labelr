@@ -90,16 +90,48 @@ def add_split(
     train_split: Annotated[
         float, typer.Option(help="fraction of samples to add in train split")
     ],
+    split_name: Annotated[
+        Optional[str],
+        typer.Option(
+            help="name of the split associated "
+            "with the task ID file. If --task-id-file is not provided, "
+            "this field is ignored."
+        ),
+    ],
     api_key: Annotated[str, typer.Option(envvar="LABEL_STUDIO_API_KEY")],
     project_id: Annotated[int, typer.Option(help="Label Studio project ID")],
+    train_split_name: Annotated[
+        str,
+        typer.Option(help="name of the train split"),
+    ] = "train",
+    val_split_name: Annotated[
+        str,
+        typer.Option(help="name of the validation split"),
+    ] = "val",
+    task_id_file: Annotated[
+        Optional[Path],
+        typer.Option(help="path of a text file containing IDs of samples"),
+    ] = None,
+    overwrite: Annotated[
+        bool, typer.Option(help="overwrite existing split field")
+    ] = False,
     label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
 ):
     """Update the split field of tasks in a Label Studio project.
 
+    The behavior of this command depends on the `--task-id-file` option.
+
+    If `--task-id-file` is provided, it should contain a list of task IDs,
+    one per line. The split field of these tasks will be updated to the value
+    of `--split-name`. 
+
+    If `--task-id-file` is not provided, the split field of all tasks in the
+    project will be updated based on the `train_split` probability.
     The split field is set to "train" with probability `train_split`, and "val"
-    otherwise. Tasks without a split field are assigned a split based on the
-    probability, and updated in the server. Tasks with a non-null split field
-    are not updated.
+    otherwise. 
+    
+    In both cases, tasks with a non-null split field are not updated unless
+    the `--overwrite` flag is provided.
     """
     import random
 
@@ -108,11 +140,29 @@ def add_split(
 
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
 
+    task_ids = None
+    if task_id_file is not None:
+        if split_name is None or split_name not in (train_split_name, val_split_name):
+            raise typer.BadParameter(
+                "--split-name is required when using --task-id-file"
+            )
+        task_ids = task_id_file.read_text().strip().split("\n")
+
     for task in ls.tasks.list(project=project_id, fields="all"):
         task: Task
+        task_id = task.id
+
         split = task.data.get("split")
-        if split is None:
-            split = "train" if random.random() < train_split else "val"
+        if split is None or overwrite:
+            if task_ids and str(task_id) in task_ids:
+                split = split_name
+            else:
+                split = (
+                    train_split_name
+                    if random.random() < train_split
+                    else val_split_name
+                )
+
             logger.info("Updating task: %s, split: %s", task.id, split)
             ls.tasks.update(task.id, data={**task.data, "split": split})
 
