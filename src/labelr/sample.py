@@ -3,7 +3,9 @@ import random
 import string
 
 import datasets
-from openfoodfacts.images import download_image
+from openfoodfacts import Flavor
+from openfoodfacts.barcode import normalize_barcode
+from openfoodfacts.images import download_image, generate_image_url
 
 logger = logging.getLogger(__name__)
 
@@ -62,17 +64,49 @@ def format_object_detection_sample_from_hf(hf_sample: dict, split: str) -> dict:
     annotation_results = format_annotation_results_from_hf(
         objects, image_width, image_height
     )
+    image_id = hf_sample["image_id"]
+    image_url = hf_meta["image_url"]
+    meta_kwargs = {}
+
+    if "off_image_id" in hf_meta:
+        # If `off_image_id` is present, we assume this is an Open Food Facts
+        # dataset sample.
+        # We normalize the barcode, and generate a new image URL
+        # to make sure that:
+        # - the image URL is valid with correct path
+        # - we use the images subdomain everywhere
+        off_image_id = hf_meta["off_image_id"]
+        meta_kwargs["off_image_id"] = off_image_id
+        barcode = normalize_barcode(hf_meta["barcode"])
+        meta_kwargs["barcode"] = barcode
+        image_id = f"{barcode}_{off_image_id}"
+
+        if ".openfoodfacts." in image_url:
+            flavor = Flavor.off
+        elif ".openbeautyfacts." in image_url:
+            flavor = Flavor.obf
+        elif ".openpetfoodfacts." in image_url:
+            flavor = Flavor.opf
+        elif ".openproductsfacts." in image_url:
+            flavor = Flavor.opf
+        else:
+            raise ValueError(
+                f"Unknown Open Food Facts flavor for image URL: {image_url}"
+            )
+        image_url = generate_image_url(
+            code=barcode, image_id=off_image_id, flavor=flavor
+        )
+
     return {
         "data": {
-            "image_id": hf_sample["image_id"],
-            "image_url": hf_meta["image_url"],
+            "image_id": image_id,
+            "image_url": image_url,
             "batch": "null",
             "split": split,
             "meta": {
                 "width": image_width,
                 "height": image_height,
-                "barcode": hf_meta["barcode"],
-                "off_image_id": hf_meta["off_image_id"],
+                **meta_kwargs,
             },
         },
         "predictions": [{"result": annotation_results}],
