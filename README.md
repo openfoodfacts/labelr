@@ -47,7 +47,17 @@ For all the commands that interact with Label Studio, you need to provide an API
 
 #### Create a project
 
-Once you have a Label Studio instance running, you can create a project with the following command:
+Once you have a Label Studio instance running, you can create a project easily. First, you need to create a configuration file for the project. The configuration file is an XML file that defines the labeling interface and the labels to use for the project. You can find an example of a configuration file in the [Label Studio documentation](https://labelstud.io/guide/setup).
+
+For an object detection task, a command allows you to create the configuration file automatically:
+
+```bash
+labelr projects create-config --labels 'label1' --labels 'label2' --output-file label_config.xml
+```
+
+where `label1` and `label2` are the labels you want to use for the object detection task, and `label_config.xml` is the output file that will contain the configuration.
+
+Then, you can create a project on Label Studio with the following command:
 
 ```bash
 labelr projects create --title my_project --api-key API_KEY --config-file label_config.xml
