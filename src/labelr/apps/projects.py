@@ -123,13 +123,13 @@ def add_split(
 
     If `--task-id-file` is provided, it should contain a list of task IDs,
     one per line. The split field of these tasks will be updated to the value
-    of `--split-name`. 
+    of `--split-name`.
 
     If `--task-id-file` is not provided, the split field of all tasks in the
     project will be updated based on the `train_split` probability.
     The split field is set to "train" with probability `train_split`, and "val"
-    otherwise. 
-    
+    otherwise.
+
     In both cases, tasks with a non-null split field are not updated unless
     the `--overwrite` flag is provided.
     """
@@ -401,3 +401,20 @@ def create_dataset_file(
                 image_id, url, image.width, image.height, extra_meta
             )
             f.write(json.dumps(label_studio_sample) + "\n")
+
+
+@app.command()
+def create_config_file(
+    output_file: Annotated[
+        Path, typer.Option(help="Path to the output label config file", exists=False)
+    ],
+    labels: Annotated[
+        list[str], typer.Option(help="List of class labels to use for the model")
+    ],
+):
+    """Create a Label Studio label config file for object detection tasks."""
+    from labelr.project_config import create_object_detection_label_config
+
+    config = create_object_detection_label_config(labels)
+    output_file.write_text(config)
+    logger.info("Label config file created: %s", output_file)
