@@ -132,7 +132,9 @@ def export(
     api_key: Annotated[Optional[str], typer.Option(envvar="LABEL_STUDIO_API_KEY")],
     repo_id: Annotated[
         Optional[str],
-        typer.Option(help="Hugging Face Datasets repository ID to convert"),
+        typer.Option(
+            help="Hugging Face Datasets repository ID to convert (only if --from or --to is `hf`)"
+        ),
     ] = None,
     label_names: Annotated[
         Optional[str],
