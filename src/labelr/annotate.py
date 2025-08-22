@@ -1,29 +1,30 @@
 import random
 import string
 
+from openfoodfacts.types import JSONType
 from openfoodfacts.utils import get_logger
-
-try:
-    from openfoodfacts.ml.object_detection import ObjectDetectionRawResult
-    from ultralytics.engine.results import Results
-except ImportError:
-    pass
-
 
 logger = get_logger(__name__)
 
 
-def format_annotation_results_from_triton(
-    objects: list["ObjectDetectionRawResult"], image_width: int, image_height: int
-):
-    """Format annotation results from a Triton object detection model into
+def format_annotation_results_from_robotoff(
+    objects: list[JSONType],
+    image_width: int,
+    image_height: int,
+    label_mapping: dict[str, str] | None = None,
+) -> list[JSONType]:
+    """Format annotation results from Robotoff prediction endpoint into
     Label Studio format."""
     annotation_results = []
     for object_ in objects:
-        bbox = object_.bounding_box
-        category_name = object_.label
+        bounding_box = object_["bounding_box"]
+        label_name = object_["label"]
+
+        if label_mapping:
+            label_name = label_mapping.get(label_name, label_name)
+
         # These are relative coordinates (between 0.0 and 1.0)
-        y_min, x_min, y_max, x_max = bbox
+        y_min, x_min, y_max, x_max = bounding_box
         # Make sure the coordinates are within the image boundaries,
         # and convert them to percentages
         y_min = min(max(0, y_min), 1.0) * 100
@@ -51,7 +52,7 @@ def format_annotation_results_from_triton(
                     "y": y,
                     "width": width,
                     "height": height,
-                    "rectanglelabels": [category_name],
+                    "rectanglelabels": [label_name],
                 },
             },
         )

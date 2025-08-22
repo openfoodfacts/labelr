@@ -164,16 +164,14 @@ def export_from_ls_to_ultralytics(
 
         if has_valid_annotation:
             download_output = download_image(
-                image_url, return_bytes=True, error_raise=error_raise
+                image_url, return_struct=True, error_raise=error_raise
             )
             if download_output is None:
                 logger.error("Failed to download image: %s", image_url)
                 continue
 
-            _, image_bytes = typing.cast(tuple[Image.Image, bytes], download_output)
-
             with (images_dir / split / f"{image_id}.jpg").open("wb") as f:
-                f.write(image_bytes)
+                f.write(download_output.image_bytes)
 
     with (output_dir / "data.yaml").open("w") as f:
         f.write("path: data\n")
@@ -215,14 +213,14 @@ def export_from_hf_to_ultralytics(
 
             if download_images:
                 download_output = download_image(
-                    image_url, return_bytes=True, error_raise=error_raise
+                    image_url, return_struct=True, error_raise=error_raise
                 )
                 if download_output is None:
                     logger.error("Failed to download image: %s", image_url)
                     continue
-                _, image_bytes = download_output
+
                 with (split_images_dir / f"{image_id}.jpg").open("wb") as f:
-                    f.write(image_bytes)
+                    f.write(download_output.image_bytes)
             else:
                 image = sample["image"]
                 image.save(split_images_dir / f"{image_id}.jpg")

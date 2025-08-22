@@ -9,8 +9,7 @@ dependencies = [
     "imagehash>=4.3.1",
     "label-studio-sdk>=1.0.8",
     "more-itertools>=10.5.0",
-    "openfoodfacts>=2.3.4",
-    "protobuf>=5.29.1",
+    "openfoodfacts>=2.9.0",
     "typer>=0.15.1",
 ]
 
@@ -20,10 +19,6 @@ labelr = "labelr.main:app"
 [project.optional-dependencies]
 ultralytics = [
     "ultralytics>=8.3.49",
-]
-triton = [
-    "tritonclient>=2.52.0",
-    "openfoodfacts[ml]>=2.3.4",
 ]
 
 [tool.uv]

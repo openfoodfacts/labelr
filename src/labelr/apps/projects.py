@@ -9,7 +9,7 @@ from openfoodfacts.utils import get_logger
 from PIL import Image
 
 from ..annotate import (
-    format_annotation_results_from_triton,
+    format_annotation_results_from_robotoff,
     format_annotation_results_from_ultralytics,
 )
 from ..config import LABEL_STUDIO_DEFAULT_URL
@@ -203,30 +203,37 @@ def annotate_from_prediction(
 
 
 class PredictorBackend(enum.Enum):
-    triton = "triton"
     ultralytics = "ultralytics"
+    robotoff = "robotoff"
 
 
 @app.command()
 def add_prediction(
     api_key: Annotated[str, typer.Option(envvar="LABEL_STUDIO_API_KEY")],
     project_id: Annotated[int, typer.Option(help="Label Studio Project ID")],
+    view_id: Annotated[
+        Optional[int],
+        typer.Option(
+            help="Label Studio View ID to filter tasks. If not provided, all tasks in the "
+            "project are processed."
+        ),
+    ] = None,
     model_name: Annotated[
         str,
         typer.Option(
-            help="Name of the object detection model to run (for Triton server) or "
+            help="Name of the object detection model to run (for Robotoff server) or "
             "of the Ultralytics zero-shot model to run."
         ),
     ] = "yolov8x-worldv2.pt",
-    triton_uri: Annotated[
+    server_url: Annotated[
         Optional[str],
-        typer.Option(help="URI (host+port) of the Triton Inference Server"),
-    ] = None,
+        typer.Option(help="The Robotoff URL if the backend is robotoff"),
+    ] = "https://robotoff.openfoodfacts.org",
     backend: Annotated[
         PredictorBackend,
         typer.Option(
-            help="Prediction backend: either use a Triton server to perform "
-            "the prediction or uses Ultralytics."
+            help="Prediction backend: either use Ultralytics to perform "
+            "the prediction or Robotoff server."
         ),
     ] = PredictorBackend.ultralytics,
     labels: Annotated[
@@ -246,8 +253,8 @@ def add_prediction(
     threshold: Annotated[
         Optional[float],
         typer.Option(
-            help="Confidence threshold for selecting bounding boxes. The default is 0.5 "
-            "for Triton backend and 0.1 for Ultralytics backend."
+            help="Confidence threshold for selecting bounding boxes. The default is 0.3 "
+            "for robotoff backend and 0.1 for ultralytics backend."
         ),
     ] = None,
     max_det: Annotated[int, typer.Option(help="Maximum numbers of detections")] = 300,
@@ -271,9 +278,7 @@ def add_prediction(
 
     import tqdm
     from label_studio_sdk.client import LabelStudio
-    from openfoodfacts.utils import get_image_from_url
-
-    from labelr.triton.object_detection import ObjectDetectionModelRegistry
+    from openfoodfacts.utils import get_image_from_url, http_session
 
     label_mapping_dict = None
     if label_mapping:
@@ -292,8 +297,6 @@ def add_prediction(
     )
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
 
-    model: ObjectDetectionModelRegistry | "YOLO"
-
     if backend == PredictorBackend.ultralytics:
         from ultralytics import YOLO
 
@@ -308,18 +311,19 @@ def add_prediction(
             model.set_classes(labels)
         else:
             logger.warning("The model does not support setting classes directly.")
-    elif backend == PredictorBackend.triton:
-        if triton_uri is None:
-            raise typer.BadParameter("Triton URI is required for Triton backend")
+    elif backend == PredictorBackend.robotoff:
+        if server_url is None:
+            raise typer.BadParameter("--server-url is required for Robotoff backend")
 
         if threshold is None:
-            threshold = 0.5
-
-        model = ObjectDetectionModelRegistry.load(model_name)
+            threshold = 0.1
+            server_url = server_url.rstrip("/")
     else:
         raise typer.BadParameter(f"Unsupported backend: {backend}")
 
-    for task in tqdm.tqdm(ls.tasks.list(project=project_id), desc="tasks"):
+    for task in tqdm.tqdm(
+        ls.tasks.list(project=project_id, view=view_id), desc="tasks"
+    ):
         if task.total_predictions == 0:
             image_url = task.data["image_url"]
             image = typing.cast(
@@ -336,12 +340,22 @@ def add_prediction(
                 label_studio_result = format_annotation_results_from_ultralytics(
                     results, labels, label_mapping_dict
                 )
-            else:
-                output = model.detect_from_image(image, triton_uri=triton_uri)
-                results = output.select(threshold=threshold)
-                logger.info("Adding prediction to task: %s", task.id)
-                label_studio_result = format_annotation_results_from_triton(
-                    results, image.width, image.height
+            elif backend == PredictorBackend.robotoff:
+                r = http_session.get(
+                    f"{server_url}/api/v1/images/predict",
+                    params={
+                        "models": model_name,
+                        "output_image": 0,
+                        "image_url": image_url,
+                    },
+                )
+                r.raise_for_status()
+                response = r.json()
+                label_studio_result = format_annotation_results_from_robotoff(
+                    response["predictions"][model_name],
+                    image.width,
+                    image.height,
+                    label_mapping_dict,
                 )
             if dry_run:
                 logger.info("image_url: %s", image_url)
@@ -389,7 +403,7 @@ def create_dataset_file(
                 extra_meta["barcode"] = barcode
                 off_image_id = Path(extract_source_from_url(url)).stem
                 extra_meta["off_image_id"] = off_image_id
-                image_id = f"{barcode}-{off_image_id}"
+                image_id = f"{barcode}_{off_image_id}"
 
             image = get_image_from_url(url, error_raise=False)
 
