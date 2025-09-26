@@ -145,7 +145,11 @@ def format_object_detection_sample_to_ls(
 
 
 def format_object_detection_sample_to_hf(
-    task_data: dict, annotations: list[dict], category_names: list[str]
+    task_data: dict,
+    annotations: list[dict],
+    label_names: list[str],
+    merge_labels: bool = False,
+    use_aws_cache: bool = True,
 ) -> dict | None:
     if len(annotations) > 1:
         logger.info("More than one annotation found, skipping")
@@ -156,8 +160,8 @@ def format_object_detection_sample_to_hf(
 
     annotation = annotations[0]
     bboxes = []
-    bbox_category_ids = []
-    bbox_category_names = []
+    bbox_label_ids = []
+    bbox_label_names = []
 
     for annotation_result in annotation["result"]:
         if annotation_result["type"] != "rectanglelabels":
@@ -171,12 +175,13 @@ def format_object_detection_sample_to_hf(
         x_max = x_min + width
         y_max = y_min + height
         bboxes.append([y_min, x_min, y_max, x_max])
-        category_name = value["rectanglelabels"][0]
-        bbox_category_names.append(category_name)
-        bbox_category_ids.append(category_names.index(category_name))
+
+        label_name = label_names[0] if merge_labels else value["rectanglelabels"][0]
+        bbox_label_names.append(label_name)
+        bbox_label_ids.append(label_names.index(label_name))
 
     image_url = task_data["image_url"]
-    image = download_image(image_url, error_raise=False)
+    image = download_image(image_url, error_raise=False, use_cache=use_aws_cache)
     if image is None:
         logger.error("Failed to download image: %s", image_url)
         return None

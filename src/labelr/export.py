@@ -3,14 +3,12 @@ import logging
 import pickle
 import random
 import tempfile
-import typing
 from pathlib import Path
 
 import datasets
 import tqdm
 from label_studio_sdk.client import LabelStudio
 from openfoodfacts.images import download_image
-from PIL import Image
 
 from labelr.sample import HF_DS_FEATURES, format_object_detection_sample_to_hf
 
@@ -27,10 +25,15 @@ def _pickle_sample_generator(dir: Path):
 def export_from_ls_to_hf(
     ls: LabelStudio,
     repo_id: str,
-    category_names: list[str],
+    label_names: list[str],
     project_id: int,
+    merge_labels: bool = False,
+    use_aws_cache: bool = True,
 ):
-    logger.info("Project ID: %d, category names: %s", project_id, category_names)
+    if merge_labels:
+        label_names = ["object"]
+
+    logger.info("Project ID: %d, label names: %s", project_id, label_names)
 
     for split in ["train", "val"]:
         logger.info("Processing split: %s", split)
@@ -45,7 +48,11 @@ def export_from_ls_to_hf(
                 if task.data["split"] != split:
                     continue
                 sample = format_object_detection_sample_to_hf(
-                    task.data, task.annotations, category_names
+                    task_data=task.data,
+                    annotations=task.annotations,
+                    label_names=label_names,
+                    merge_labels=merge_labels,
+                    use_aws_cache=use_aws_cache,
                 )
                 if sample is not None:
                     # Save output as pickle
@@ -62,10 +69,12 @@ def export_from_ls_to_hf(
 def export_from_ls_to_ultralytics(
     ls: LabelStudio,
     output_dir: Path,
-    category_names: list[str],
+    label_names: list[str],
     project_id: int,
     train_ratio: float = 0.8,
     error_raise: bool = True,
+    merge_labels: bool = False,
+    use_aws_cache: bool = True,
 ):
     """Export annotations from a Label Studio project to the Ultralytics
     format.
@@ -73,7 +82,9 @@ def export_from_ls_to_ultralytics(
     The Label Studio project should be an object detection project with a
     single rectanglelabels annotation result per task.
     """
-    logger.info("Project ID: %d, category names: %s", project_id, category_names)
+    if merge_labels:
+        label_names = ["object"]
+    logger.info("Project ID: %d, label names: %s", project_id, label_names)
 
     data_dir = output_dir / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -146,25 +157,30 @@ def export_from_ls_to_ultralytics(
                     y_min = value["y"] / 100
                     width = value["width"] / 100
                     height = value["height"] / 100
-                    category_name = value["rectanglelabels"][0]
-                    category_id = category_names.index(category_name)
+                    label_name = (
+                        label_names[0] if merge_labels else value["rectanglelabels"][0]
+                    )
+                    label_id = label_names.index(label_name)
 
                     # Save the labels in the Ultralytics format:
                     # - one label per line
                     # - each line is a list of 5 elements:
-                    #   - category_id
+                    #   - label_id
                     #   - x_center
                     #   - y_center
                     #   - width
                     #   - height
                     x_center = x_min + width / 2
                     y_center = y_min + height / 2
-                    f.write(f"{category_id} {x_center} {y_center} {width} {height}\n")
+                    f.write(f"{label_id} {x_center} {y_center} {width} {height}\n")
                     has_valid_annotation = True
 
         if has_valid_annotation:
             download_output = download_image(
-                image_url, return_struct=True, error_raise=error_raise
+                image_url,
+                return_struct=True,
+                error_raise=error_raise,
+                use_cache=use_aws_cache,
             )
             if download_output is None:
                 logger.error("Failed to download image: %s", image_url)
@@ -179,8 +195,8 @@ def export_from_ls_to_ultralytics(
         f.write("val: images/val\n")
         f.write("test:\n")
         f.write("names:\n")
-        for i, category_name in enumerate(category_names):
-            f.write(f"  {i}: {category_name}\n")
+        for i, label_name in enumerate(label_names):
+            f.write(f"  {i}: {label_name}\n")
 
 
 def export_from_hf_to_ultralytics(
@@ -188,6 +204,7 @@ def export_from_hf_to_ultralytics(
     output_dir: Path,
     download_images: bool = True,
     error_raise: bool = True,
+    use_aws_cache: bool = True,
 ):
     """Export annotations from a Hugging Face dataset project to the
     Ultralytics format.
@@ -213,7 +230,10 @@ def export_from_hf_to_ultralytics(
 
             if download_images:
                 download_output = download_image(
-                    image_url, return_struct=True, error_raise=error_raise
+                    image_url,
+                    return_struct=True,
+                    error_raise=error_raise,
+                    use_cache=use_aws_cache,
                 )
                 if download_output is None:
                     logger.error("Failed to download image: %s", image_url)

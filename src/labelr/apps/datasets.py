@@ -167,6 +167,17 @@ def export(
             help="Raise an error if an image download fails, only for Ultralytics"
         ),
     ] = True,
+    use_aws_cache: Annotated[
+        bool,
+        typer.Option(
+            help="Use the AWS S3 cache for image downloads instead of images.openfoodfacts.org, "
+            "it is ignored if the export format is not Ultralytics"
+        ),
+    ] = True,
+    merge_labels: Annotated[
+        bool,
+        typer.Option(help="Merge multiple labels into a single label"),
+    ] = False,
 ):
     """Export Label Studio annotation, either to Hugging Face Datasets or
     local files (ultralytics format)."""
@@ -205,7 +216,12 @@ def export(
         if to == ExportDestination.hf:
             repo_id = typing.cast(str, repo_id)
             export_from_ls_to_hf(
-                ls, repo_id, label_names_list, typing.cast(int, project_id)
+                ls,
+                repo_id=repo_id,
+                label_names=label_names_list,
+                project_id=typing.cast(int, project_id),
+                merge_labels=merge_labels,
+                use_aws_cache=use_aws_cache,
             )
         elif to == ExportDestination.ultralytics:
             export_from_ls_to_ultralytics(
@@ -215,6 +231,8 @@ def export(
                 typing.cast(int, project_id),
                 train_ratio=train_ratio,
                 error_raise=error_raise,
+                merge_labels=merge_labels,
+                use_aws_cache=use_aws_cache,
             )
 
     elif from_ == ExportSource.hf:
@@ -224,6 +242,7 @@ def export(
                 typing.cast(Path, output_dir),
                 download_images=download_images,
                 error_raise=error_raise,
+                use_aws_cache=use_aws_cache,
             )
         else:
             raise typer.BadParameter("Unsupported export format")
