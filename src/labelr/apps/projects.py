@@ -90,6 +90,8 @@ def add_split(
     train_split: Annotated[
         float, typer.Option(help="fraction of samples to add in train split")
     ],
+    api_key: Annotated[str, typer.Option(envvar="LABEL_STUDIO_API_KEY")],
+    project_id: Annotated[int, typer.Option(help="Label Studio project ID")],
     split_name: Annotated[
         Optional[str],
         typer.Option(
@@ -97,9 +99,7 @@ def add_split(
             "with the task ID file. If --task-id-file is not provided, "
             "this field is ignored."
         ),
-    ],
-    api_key: Annotated[str, typer.Option(envvar="LABEL_STUDIO_API_KEY")],
-    project_id: Annotated[int, typer.Option(help="Label Studio project ID")],
+    ] = None,
     train_split_name: Annotated[
         str,
         typer.Option(help="name of the train split"),
