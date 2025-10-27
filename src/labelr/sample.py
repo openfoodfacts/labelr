@@ -198,14 +198,14 @@ def format_object_detection_sample_to_hf(
         },
         "objects": {
             "bbox": bboxes,
-            "category_id": bbox_category_ids,
-            "category_name": bbox_category_names,
+            "category_id": bbox_label_ids,
+            "category_name": bbox_label_names,
         },
     }
 
 
 # The HuggingFace Dataset features
-HF_DS_FEATURES = datasets.Features(
+HF_DS_OBJECT_DETECTION_FEATURES = datasets.Features(
     {
         "image_id": datasets.Value("string"),
         "image": datasets.features.Image(),
@@ -221,5 +221,22 @@ HF_DS_FEATURES = datasets.Features(
             "category_id": datasets.Sequence(datasets.Value("int64")),
             "category_name": datasets.Sequence(datasets.Value("string")),
         },
+    }
+)
+
+
+HF_DS_CLASSIFICATION_FEATURES = datasets.Features(
+    {
+        "image_id": datasets.Value("string"),
+        "image": datasets.features.Image(),
+        "width": datasets.Value("int64"),
+        "height": datasets.Value("int64"),
+        "meta": {
+            "barcode": datasets.Value("string"),
+            "off_image_id": datasets.Value("string"),
+            "image_url": datasets.Value("string"),
+        },
+        "category_id": datasets.Value("int64"),
+        "category_name": datasets.Value("string"),
     }
 )

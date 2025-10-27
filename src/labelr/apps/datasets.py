@@ -6,7 +6,10 @@ from pathlib import Path
 from typing import Annotated, Optional
 
 import typer
+from openfoodfacts import Flavor
 from openfoodfacts.utils import get_logger
+
+from labelr.export import export_from_ultralytics_to_hf
 
 from ..config import LABEL_STUDIO_DEFAULT_URL
 from ..types import ExportDestination, ExportSource, TaskType
@@ -130,6 +133,9 @@ def export(
     from_: Annotated[ExportSource, typer.Option("--from", help="Input source to use")],
     to: Annotated[ExportDestination, typer.Option(help="Where to export the data")],
     api_key: Annotated[Optional[str], typer.Option(envvar="LABEL_STUDIO_API_KEY")],
+    task_type: Annotated[
+        TaskType, typer.Option(help="Type of task to export")
+    ] = TaskType.object_detection,
     repo_id: Annotated[
         Optional[str],
         typer.Option(
@@ -148,12 +154,33 @@ def export(
         Optional[Path],
         typer.Option(help="Path to the output directory", file_okay=False),
     ] = None,
+    dataset_dir: Annotated[
+        Optional[Path],
+        typer.Option(help="Path to the dataset directory, only for Ultralytics source"),
+    ] = None,
     download_images: Annotated[
         bool,
         typer.Option(
             help="if True, don't use HF images and download images from the server"
         ),
     ] = False,
+    is_openfoodfacts_dataset: Annotated[
+        bool,
+        typer.Option(
+            help="Whether the Ultralytics dataset is an OpenFoodFacts dataset, only "
+            "for Ultralytics source. This is used to generate the correct image URLs "
+            "each image name."
+        ),
+    ] = True,
+    openfoodfacts_flavor: Annotated[
+        Flavor,
+        typer.Option(
+            help="Flavor of the Open Food Facts dataset to use for image URLs, only "
+            "for Ultralytics source if is_openfoodfacts_dataset is True. This is used to "
+            "generate the correct image URLs each image name. This option is ignored if "
+            "is_openfoodfacts_dataset is False."
+        ),
+    ] = Flavor.off,
     train_ratio: Annotated[
         float,
         typer.Option(
@@ -192,6 +219,13 @@ def export(
     if (to == ExportDestination.hf or from_ == ExportSource.hf) and repo_id is None:
         raise typer.BadParameter("Repository ID is required for export/import with HF")
 
+    if from_ == ExportSource.ultralytics and dataset_dir is None:
+        raise typer.BadParameter(
+            "Dataset directory is required for export from Ultralytics source"
+        )
+
+    label_names_list: list[str] | None = None
+
     if label_names is None:
         if to == ExportDestination.hf:
             raise typer.BadParameter("Label names are required for HF export")
@@ -199,6 +233,9 @@ def export(
             raise typer.BadParameter(
                 "Label names are required for export from LS source"
             )
+    else:
+        label_names = typing.cast(str, label_names)
+        label_names_list = label_names.split(",")
 
     if from_ == ExportSource.ls:
         if project_id is None:
@@ -210,15 +247,17 @@ def export(
         raise typer.BadParameter("Output directory is required for Ultralytics export")
 
     if from_ == ExportSource.ls:
+        if task_type != TaskType.object_detection:
+            raise typer.BadParameter(
+                "Only object detection task is currently supported with LS source"
+            )
         ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
-        label_names = typing.cast(str, label_names)
-        label_names_list = label_names.split(",")
         if to == ExportDestination.hf:
             repo_id = typing.cast(str, repo_id)
             export_from_ls_to_hf(
                 ls,
                 repo_id=repo_id,
-                label_names=label_names_list,
+                label_names=typing.cast(list[str], label_names_list),
                 project_id=typing.cast(int, project_id),
                 merge_labels=merge_labels,
                 use_aws_cache=use_aws_cache,
@@ -227,7 +266,7 @@ def export(
             export_from_ls_to_ultralytics(
                 ls,
                 typing.cast(Path, output_dir),
-                label_names_list,
+                typing.cast(list[str], label_names_list),
                 typing.cast(int, project_id),
                 train_ratio=train_ratio,
                 error_raise=error_raise,
@@ -236,6 +275,10 @@ def export(
             )
 
     elif from_ == ExportSource.hf:
+        if task_type != TaskType.object_detection:
+            raise typer.BadParameter(
+                "Only object detection task is currently supported with HF source"
+            )
         if to == ExportDestination.ultralytics:
             export_from_hf_to_ultralytics(
                 typing.cast(str, repo_id),
@@ -246,3 +289,18 @@ def export(
             )
         else:
             raise typer.BadParameter("Unsupported export format")
+    elif from_ == ExportSource.ultralytics:
+        if task_type != TaskType.classification:
+            raise typer.BadParameter(
+                "Only classification task is currently supported with Ultralytics source"
+            )
+        if to == ExportDestination.hf:
+            export_from_ultralytics_to_hf(
+                task_type=task_type,
+                dataset_dir=typing.cast(Path, dataset_dir),
+                repo_id=typing.cast(str, repo_id),
+                merge_labels=merge_labels,
+                label_names=typing.cast(list[str], label_names_list),
+                is_openfoodfacts_dataset=is_openfoodfacts_dataset,
+                openfoodfacts_flavor=openfoodfacts_flavor,
+            )

@@ -4,6 +4,7 @@ import enum
 class ExportSource(str, enum.Enum):
     hf = "hf"
     ls = "ls"
+    ultralytics = "ultralytics"
 
 
 class ExportDestination(str, enum.Enum):
