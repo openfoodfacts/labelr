@@ -1,0 +1,15 @@
+[project]
+name = "labelr-train-yolo"
+version = "0.1.0"
+description = "A CLI to train Yolo object detection models."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "typer>=0.15.1",
+    "tqdm",
+    "Pillow",
+    "ultralytics==8.3.223",
+    "albumentations",
+    "labelr==0.4.1",
+    "wandb",
+]
