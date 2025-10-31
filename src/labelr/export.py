@@ -29,7 +29,7 @@ def _pickle_sample_generator(dir: Path):
             yield pickle.load(f)
 
 
-def export_from_ls_to_hf(
+def export_from_ls_to_hf_object_detection(
     ls: LabelStudio,
     repo_id: str,
     label_names: list[str],
@@ -73,7 +73,7 @@ def export_from_ls_to_hf(
             hf_ds.push_to_hub(repo_id, split=split)
 
 
-def export_from_ls_to_ultralytics(
+def export_from_ls_to_ultralytics_object_detection(
     ls: LabelStudio,
     output_dir: Path,
     label_names: list[str],
@@ -206,7 +206,7 @@ def export_from_ls_to_ultralytics(
             f.write(f"  {i}: {label_name}\n")
 
 
-def export_from_hf_to_ultralytics(
+def export_from_hf_to_ultralytics_object_detection(
     repo_id: str,
     output_dir: Path,
     download_images: bool = True,
@@ -309,6 +309,43 @@ def export_from_ultralytics_to_hf(
             "Only classification task is currently supported for Ultralytics to HF export"
         )
 
+    if task_type == TaskType.classification:
+        export_from_ultralytics_to_hf_classification(
+            dataset_dir=dataset_dir,
+            repo_id=repo_id,
+            label_names=label_names,
+            merge_labels=merge_labels,
+            is_openfoodfacts_dataset=is_openfoodfacts_dataset,
+            openfoodfacts_flavor=openfoodfacts_flavor,
+        )
+
+
+def export_from_ultralytics_to_hf_classification(
+    dataset_dir: Path,
+    repo_id: str,
+    label_names: list[str],
+    merge_labels: bool = False,
+    is_openfoodfacts_dataset: bool = False,
+    openfoodfacts_flavor: Flavor = Flavor.off,
+) -> None:
+    """Export an Ultralytics classification dataset to a Hugging Face dataset.
+
+    The Ultralytics dataset directory should contain 'train', 'val' and/or
+    'test' subdirectories, each containing subdirectories for each label.
+
+    Args:
+        dataset_dir (Path): Path to the Ultralytics dataset directory.
+        repo_id (str): Hugging Face repository ID to push the dataset to.
+        label_names (list[str]): List of label names.
+        merge_labels (bool): Whether to merge all labels into a single label
+            named 'object'.
+        is_openfoodfacts_dataset (bool): Whether the dataset is from
+            Open Food Facts. If True, the `off_image_id` and `image_url` will
+            be generated automatically. `off_image_id` is extracted from the
+            image filename.
+        openfoodfacts_flavor (Flavor): Flavor of Open Food Facts dataset. This
+            is ignored if `is_openfoodfacts_dataset` is False.
+    """
     logger.info("Repo ID: %s, dataset_dir: %s", repo_id, dataset_dir)
 
     if not any((dataset_dir / split).is_dir() for split in ["train", "val", "test"]):
