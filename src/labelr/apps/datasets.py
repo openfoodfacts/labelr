@@ -211,9 +211,9 @@ def export(
     from label_studio_sdk.client import LabelStudio
 
     from labelr.export import (
-        export_from_hf_to_ultralytics,
-        export_from_ls_to_hf,
-        export_from_ls_to_ultralytics,
+        export_from_hf_to_ultralytics_object_detection,
+        export_from_ls_to_hf_object_detection,
+        export_from_ls_to_ultralytics_object_detection,
     )
 
     if (to == ExportDestination.hf or from_ == ExportSource.hf) and repo_id is None:
@@ -254,7 +254,7 @@ def export(
         ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
         if to == ExportDestination.hf:
             repo_id = typing.cast(str, repo_id)
-            export_from_ls_to_hf(
+            export_from_ls_to_hf_object_detection(
                 ls,
                 repo_id=repo_id,
                 label_names=typing.cast(list[str], label_names_list),
@@ -263,7 +263,7 @@ def export(
                 use_aws_cache=use_aws_cache,
             )
         elif to == ExportDestination.ultralytics:
-            export_from_ls_to_ultralytics(
+            export_from_ls_to_ultralytics_object_detection(
                 ls,
                 typing.cast(Path, output_dir),
                 typing.cast(list[str], label_names_list),
@@ -280,7 +280,7 @@ def export(
                 "Only object detection task is currently supported with HF source"
             )
         if to == ExportDestination.ultralytics:
-            export_from_hf_to_ultralytics(
+            export_from_hf_to_ultralytics_object_detection(
                 typing.cast(str, repo_id),
                 typing.cast(Path, output_dir),
                 download_images=download_images,
