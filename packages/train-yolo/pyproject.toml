@@ -12,4 +12,24 @@ dependencies = [
     "albumentations",
     "labelr==0.4.1",
     "wandb",
+    "torch==2.9.0",
+    "Jinja2==3.1.6",
+    "onnxruntime==1.23.2",
+    "onnx==1.19.1",
+    "onnxslim==0.1.72",
 ]
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+torchvision = [
+  { index = "pytorch", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+# Optional name for the index.
+name = "pytorch"
+# Required URL for the index.
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true

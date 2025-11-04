@@ -5,6 +5,7 @@ from openfoodfacts.utils import get_logger
 
 from labelr.apps import datasets as dataset_app
 from labelr.apps import projects as project_app
+from labelr.apps import train as train_app
 from labelr.apps import users as user_app
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
@@ -67,6 +68,12 @@ app.add_typer(
     dataset_app.app,
     name="datasets",
     help="Manage datasets (convert, export, check, etc.)",
+)
+
+app.add_typer(
+    train_app.app,
+    name="train",
+    help="Train models",
 )
 
 if __name__ == "__main__":
