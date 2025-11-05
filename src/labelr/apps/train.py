@@ -63,7 +63,7 @@ def launch_job(
     commands: str | None = None,
     env_variables: dict[str, str] | None = None,
     entrypoint: str | None = None,
-    cpu_milli: int = 4000,  # in milliseconds per cpu-second. This means the task requires 4 whole CPUs.
+    cpu_milli: int = 4000,  # in milli-CPU units (4000 = 4 CPUs). This means the task requires 4 whole CPUs.
     memory_mib: int = 16000,
     boot_disk_mib: int = 100000,
     max_retry_count: int = 1,
