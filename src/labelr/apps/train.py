@@ -128,7 +128,7 @@ def launch_job(
     # will run on.
     policy = batch_v1.AllocationPolicy.InstancePolicy()
     # See list of machine types here:
-    # https://docs.cloud.google.com/compute/docs/gpus#l4-gpus
+    # https://docs.cloud.google.com/compute/docs/gpus#t4-gpus
     policy.machine_type = machine_type
 
     accelerator = batch_v1.AllocationPolicy.Accelerator()

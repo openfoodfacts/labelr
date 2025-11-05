@@ -1,5 +1,7 @@
 import datetime
+import functools
 import os
+import pickle
 import tempfile
 from pathlib import Path
 from typing import Annotated
@@ -15,18 +17,10 @@ from datasets import Image as HFImage
 from huggingface_hub import HfApi, ModelCard, ModelCardData
 from PIL import Image
 
-from labelr.export import export_from_hf_to_ultralytics_object_detection
-
-FORMAT_TO_EXTENSION = {
-    "JPEG": ".jpg",
-    "PNG": ".png",
-    "GIF": ".gif",
-    "BMP": ".bmp",
-    "TIFF": ".tif",
-    "ICO": ".ico",
-    "WEBP": ".webp",
-}
-
+from labelr.export import (
+    _pickle_sample_generator,
+    export_from_hf_to_ultralytics_object_detection,
+)
 
 CARD_TEMPLATE = """
 ---
@@ -36,6 +30,8 @@ CARD_TEMPLATE = """
 ---
 
 # Model Card for {{ model_id | default("Model ID", true) }}
+
+{% if wandb_run_url %}[Wandb tracking run]({{ wandb_run_url }}){% endif %}
 
 This object detection model was fine-tuned using the Ultralytics YOLO library.
 
@@ -54,7 +50,7 @@ This object detection model was fine-tuned using the Ultralytics YOLO library.
 
 ### Training Data
 
-The model was fine-tuned using the following dataset: {{ repo | default("[More Information Needed]", true)}}
+The model was fine-tuned using the following dataset: [{{ dataset_repo_id }}](https://huggingface.co/datasets/{{ dataset_repo_id }}) (revision: `{{ dataset_revision }}`).
 
 ### Training Procedure
 
@@ -85,11 +81,41 @@ What was added:
 
 - an ONNX export of the trained model (best model), stored in `weights/model.onnx`.
 - a Parquet file containing predictions on the full dataset, stored in `predictions.parquet`.
+- a TensorRT engine export of the trained model, stored in `weights/model.engine`.
 """
+
+
+DS_PREDICTION_FEATURES = Features(
+    {
+        "image": HFImage(),
+        "image_with_prediction": HFImage(),
+        "image_id": datasets.Value("string"),
+        "detected": {
+            "bbox": datasets.Sequence(datasets.Sequence(datasets.Value("float32"))),
+            "category_id": datasets.Sequence(datasets.Value("int64")),
+            "category_name": datasets.Sequence(datasets.Value("string")),
+            "confidence": datasets.Sequence(datasets.Value("float32")),
+        },
+        "split": datasets.Value("string"),
+        "width": datasets.Value("int64"),
+        "height": datasets.Value("int64"),
+        "meta": {
+            "barcode": datasets.Value("string"),
+            "off_image_id": datasets.Value("string"),
+            "image_url": datasets.Value("string"),
+        },
+        "objects": {
+            "bbox": datasets.Sequence(datasets.Sequence(datasets.Value("float32"))),
+            "category_id": datasets.Sequence(datasets.Value("int64")),
+            "category_name": datasets.Sequence(datasets.Value("string")),
+        },
+    }
+)
 
 
 def create_model_card(
     dataset_repo_id: str,
+    dataset_revision: str,
     model_id: str,
     base_model: str,
     training_epochs: int,
@@ -97,6 +123,7 @@ def create_model_card(
     training_batch_size: int,
     metrics_results_dict: dict[str, float],
     license: str = "agpl-3.0",
+    wandb_run_url: str | None = None,
 ) -> ModelCard:
     card_data = ModelCardData(
         license=license,
@@ -111,130 +138,118 @@ def create_model_card(
         model_id=model_id,
         developers="Open Food Facts",
         model_type="object detection",
-        repo=f"https://huggingface.co/datasets/{dataset_repo_id}",
+        dataset_repo_id=dataset_repo_id,
+        dataset_revision=dataset_revision,
         metrics_results_dict=metrics_results_dict,
         training_epochs=training_epochs,
         training_imgsz=training_imgsz,
         training_batch_size=training_batch_size,
         ultralytics_version=ultralytics.__version__,
         pytorch_version=torch.__version__,
+        wandb_run_url=wandb_run_url,
     )
 
 
 def create_predict_dataset(
     model: ultralytics.YOLO,
     ds: Dataset,
-    output_image_dir: Path,
     output_path: Path,
     imgsz: int,
-    batch: int,
     conf: float = 0.25,
 ):
+    """Create a Parquet dataset with model predictions."""
     # Run the model on the full dataset, draw bounding boxes on images, and
     # save them as a Hugging Face dataset
-
-    # Reset output directories
-    if output_image_dir.exists():
-        raise ValueError(f"Output images directory already exists: {output_image_dir}")
 
     if output_path.exists():
         raise ValueError(f"Output parquet file already exists: {output_path}")
 
-    records = []
-    for split_name in ds.keys():
-        for sample in tqdm.tqdm(ds[split_name]):
-            image_id = sample["image_id"]
-            image = sample["image"]
-            res = model.predict(
-                source=image,
-                imgsz=imgsz,
-                batch=batch,
-                save=False,
-                verbose=False,
-                conf=conf,
-            )[0]
-            # res.plot() returns an image (numpy array) with boxes drawn
-            plotted = res.plot()
-            # convert BGR to RGB
-            plotted = plotted[:, :, ::-1]
-            pil_img = Image.fromarray(plotted)
-            extension = FORMAT_TO_EXTENSION[image.format]
-            out_path = output_image_dir / split_name / f"{image_id}.{extension}"
-            out_path.parent.mkdir(parents=True, exist_ok=True)
-            pil_img.save(out_path)
+    with tempfile.TemporaryDirectory() as tmpdirname_str:
+        tmp_dir = Path(tmpdirname_str)
+        for split_name in ds.keys():
+            for i, sample in tqdm.tqdm(enumerate(ds[split_name])):
+                image_id = sample["image_id"]
+                image = sample["image"]
+                res = model.predict(
+                    source=image,
+                    imgsz=imgsz,
+                    save=False,
+                    verbose=False,
+                    conf=conf,
+                )[0]
+                # res.plot() returns an image (numpy array) with boxes drawn
+                plotted = res.plot()
+                # convert BGR to RGB
+                plotted = plotted[:, :, ::-1]
+                pil_img = Image.fromarray(plotted)
 
-            boxes = res.boxes
-            # Convert ultralytics xyxyn format to (y_min, x_min, y_max, x_max)
-            xyxyn = [
-                (y_min, x_min, y_max, x_max)
-                for (x_min, y_min, x_max, y_max) in boxes.xyxyn.cpu().numpy().tolist()
-            ]
-            record = {
-                "image": str(out_path),
-                "detected": {
-                    "bbox": xyxyn,
-                    "category_id": boxes.cls.cpu().numpy().astype("int64").tolist(),
-                    "category_name": [
-                        model.names[int(c)] for c in boxes.cls.cpu().numpy()
-                    ],
-                    "confidence": boxes.conf.cpu().numpy().tolist(),
-                },
-                "split": split_name,
-                "image_id": image_id,
-                "width": sample["width"],
-                "height": sample["height"],
-                "objects": sample["objects"],
-            }
+                boxes = res.boxes
+                # Convert ultralytics xyxyn format to
+                # (y_min, x_min, y_max, x_max)
+                xyxyn = [
+                    (y_min, x_min, y_max, x_max)
+                    for (x_min, y_min, x_max, y_max) in boxes.xyxyn.cpu()
+                    .numpy()
+                    .tolist()
+                ]
+                record = {
+                    "image": image,
+                    "image_with_predictions": pil_img,
+                    "detected": {
+                        "bbox": xyxyn,
+                        "category_id": boxes.cls.cpu().numpy().astype("int64").tolist(),
+                        "category_name": [
+                            model.names[int(c)] for c in boxes.cls.cpu().numpy()
+                        ],
+                        "confidence": boxes.conf.cpu().numpy().tolist(),
+                    },
+                    "split": split_name,
+                    "image_id": image_id,
+                    "objects": sample["objects"],
+                }
 
-            if "meta" in sample:
-                record["meta"] = sample["meta"]
+                if "width" in sample:
+                    record["width"] = sample["width"]
+                if "height" in sample:
+                    record["height"] = sample["height"]
 
-            records.append(record)
+                if "meta" in sample:
+                    record["meta"] = sample["meta"]
 
-    # Build a Hugging Face dataset where each example contains the plotted
-    # image
-    ds = Dataset.from_list(
-        records,
-        features=Features(
-            {
-                "image": HFImage(),
-                "image_id": datasets.Value("string"),
-                "detected": {
-                    "bbox": datasets.Sequence(
-                        datasets.Sequence(datasets.Value("float32"))
-                    ),
-                    "category_id": datasets.Sequence(datasets.Value("int64")),
-                    "category_name": datasets.Sequence(datasets.Value("string")),
-                    "confidence": datasets.Sequence(datasets.Value("float32")),
-                },
-                "split": datasets.Value("string"),
-                "width": datasets.Value("int64"),
-                "height": datasets.Value("int64"),
-                "meta": {
-                    "barcode": datasets.Value("string"),
-                    "off_image_id": datasets.Value("string"),
-                    "image_url": datasets.Value("string"),
-                },
-                "objects": {
-                    "bbox": datasets.Sequence(
-                        datasets.Sequence(datasets.Value("float32"))
-                    ),
-                    "category_id": datasets.Sequence(datasets.Value("int64")),
-                    "category_name": datasets.Sequence(datasets.Value("string")),
-                },
-            }
-        ),
-    )
-    ds.to_parquet(output_path)
-    typer.echo(f"Saved {len(records)} prediction images to: {output_image_dir}")
-    typer.echo(f"Saved Hugging Face dataset as Parquet file to: {output_path}")
+                with open(tmp_dir / f"{i:06d}.pkl", "wb") as f:
+                    pickle.dump(sample, f)
+
+        # Build a Hugging Face dataset where each example contains the plotted
+        # image
+        ds = Dataset.from_generator(
+            functools.partial(_pickle_sample_generator, tmp_dir),
+            features=DS_PREDICTION_FEATURES,
+        )
+        ds.to_parquet(output_path)
+        typer.echo(f"Saved Hugging Face dataset as Parquet file to: {output_path}")
+
+
+WANDB_RUN_URL = None
+
+
+def register_wanb_run_url(trainer):
+    """Register the Wandb run URL to a global variable for later use."""
+    global WANDB_RUN_URL
+
+    from ultralytics.utils.callbacks.wb import wb
+
+    if wb is not None:
+        WANDB_RUN_URL = wb.run.url
+        print("Set WANDB_RUN_URL to:", WANDB_RUN_URL)
 
 
 def main(
     hf_repo_id: Annotated[
         str,
         typer.Argument(
-            envvar="HF_REPO_ID", help="Hugging Face repo ID of the dataset to train on"
+            envvar="HF_REPO_ID",
+            help="Hugging Face repo ID of the dataset to train on."
+            "The revision can be specified with '@revision' suffix (ex: @main).",
         ),
     ],
     trained_model_repo_id: Annotated[
@@ -303,17 +318,25 @@ def main(
     dataset_dir = root_dir / "datasets"
     run_dir = (Path(__file__).parent / project / run_name).absolute()
 
+    # We can specify a revision (branch, commit sha or tag) with '@' suffix
+    if "@" in hf_repo_id:
+        hf_repo_id, revision = hf_repo_id.split("@", 1)
+    else:
+        revision = "main"
+
     # `skip_dataset_download` is an option to skip dataset download, useful
     # for debugging locally
     if not skip_dataset_download:
         export_from_hf_to_ultralytics_object_detection(
             repo_id=hf_repo_id,
             output_dir=dataset_dir,
+            revision=revision,
             download_images=False,
             error_raise=True,
         )
 
     model = ultralytics.YOLO(model_name, task="detect")
+    model.add_callback("on_train_start", register_wanb_run_url)
     typer.echo(f"Starting training run: {run_name}")
     # After training, ultralytics re-loads the best model weights
     model.train(
@@ -325,28 +348,39 @@ def main(
         name=run_name,
     )
 
-    # Export the trained model to ONNX format
-    model.export(format="onnx")
+    # Export the trained model to ONNX and TensorRT format
+    model.export(
+        format="onnx",
+        # Include NMS in the exported model
+        nms=True,
+        # Ultralytics tweaks the ONNX opset when exporting for GPUs
+        # to prevent compatibility issues
+        device="gpu",
+    )
     # Rename the exported model to a standard name
     (run_dir / "weights/best.onnx").rename(run_dir / "weights/model.onnx")
+
+    model.export(
+        format="engine",
+        # Include NMS in the exported model
+        nms=True,
+    )
+    # Rename the exported model to a standard name
+    (run_dir / "weights/best.engine").rename(run_dir / "weights/model.engine")
+    # best.onnx file is generated during TensorRT export
+    (run_dir / "weights/best.onnx").unlink()
 
     metrics = model.metrics
     metrics_results_dict: dict[str, float] = metrics.results_dict
 
-    ds = datasets.load_dataset(hf_repo_id)
-    with tempfile.TemporaryDirectory() as tmp_dir_str:
-        tmp_dir = Path(tmp_dir_str)
-        # After training, run prediction on the full dataset and save results
-        output_image_dir = tmp_dir / "predictions" / "images"
-        output_parquet_path = run_dir / "predictions.parquet"
-        create_predict_dataset(
-            model=model,
-            ds=ds,
-            output_image_dir=output_image_dir,
-            output_path=output_parquet_path,
-            imgsz=imgsz,
-            batch=batch,
-        )
+    ds = datasets.load_dataset(hf_repo_id, revision=revision)
+    # After training, run prediction on the full dataset and save results
+    create_predict_dataset(
+        model=model,
+        ds=ds,
+        output_path=run_dir / "predictions.parquet",
+        imgsz=imgsz,
+    )
 
     typer.echo(f"Uploading trained model to Hugging Face repo: {trained_model_repo_id}")
     hf_api.create_repo(
@@ -388,12 +422,14 @@ def main(
     model_id = hf_repo_id.split("/")[1] if "/" in hf_repo_id else hf_repo_id
     model_card = create_model_card(
         dataset_repo_id=hf_repo_id,
+        dataset_revision=revision,
         model_id=model_id,
         base_model=model_name,
         training_epochs=epochs,
         training_imgsz=imgsz,
         training_batch_size=batch,
         metrics_results_dict=metrics_results_dict,
+        wandb_run_url=WANDB_RUN_URL,
     )
     model_card.push_to_hub(
         repo_id=trained_model_repo_id,
