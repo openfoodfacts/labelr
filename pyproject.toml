@@ -11,6 +11,7 @@ dependencies = [
     "more-itertools>=10.5.0",
     "openfoodfacts>=2.9.0",
     "typer>=0.15.1",
+    "google-cloud-batch==0.18.0",
 ]
 
 [project.scripts]

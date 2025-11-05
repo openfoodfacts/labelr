@@ -212,15 +212,30 @@ def export_from_hf_to_ultralytics_object_detection(
     download_images: bool = True,
     error_raise: bool = True,
     use_aws_cache: bool = True,
+    revision: str = "main",
 ):
     """Export annotations from a Hugging Face dataset project to the
     Ultralytics format.
 
     The Label Studio project should be an object detection project with a
     single rectanglelabels annotation result per task.
+
+    Args:
+        repo_id (str): Hugging Face repository ID to load the dataset from.
+        output_dir (Path): Path to the output directory.
+        download_images (bool): Whether to download images from URLs in the
+            dataset. If False, the dataset is expected to contain an `image`
+            field with the image data.
+        error_raise (bool): Whether to raise an error if an image fails to
+            download. If False, the image will be skipped. This option is only
+            used if `download_images` is True. Defaults to True.
+        use_aws_cache (bool): Whether to use the AWS image cache when
+            downloading images. This option is only used if `download_images`
+            is True. Defaults to True.
+        revision (str): The dataset revision to load. Defaults to 'main'.
     """
     logger.info("Repo ID: %s", repo_id)
-    ds = datasets.load_dataset(repo_id)
+    ds = datasets.load_dataset(repo_id, revision=revision)
     data_dir = output_dir / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
     category_id_to_name = {}
@@ -233,9 +248,16 @@ def export_from_hf_to_ultralytics_object_detection(
 
         for sample in tqdm.tqdm(ds[split], desc="samples"):
             image_id = sample["image_id"]
-            image_url = sample["meta"]["image_url"]
 
             if download_images:
+                if "meta" not in sample or "image_url" not in sample["meta"]:
+                    raise ValueError(
+                        "`meta.image_url` field not found in sample. "
+                        "Make sure the dataset contains the `meta.image_url` "
+                        "field, which should be the URL of the image, or set "
+                        "`download_images` to False."
+                    )
+                image_url = sample["meta"]["image_url"]
                 download_output = download_image(
                     image_url,
                     return_struct=True,

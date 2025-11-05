@@ -121,3 +121,7 @@ labelr datasets export --project-id PROJECT_ID --from ls --to huggingface --repo
 ```
 
 where `REPO_ID` is the ID of the Hugging Face repository where the dataset will be uploaded (ex: `openfoodfacts/food-detection`).
+
+### Lauch training jobs
+
+You can also launch training jobs for YOLO object detection models using datasets hosted on Hugging Face. Please refer to the [train-yolo package README](packages/train-yolo/README.md) for more details on how to use this feature.
