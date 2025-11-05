@@ -64,7 +64,7 @@ def launch_job(
     env_variables: dict[str, str] | None = None,
     entrypoint: str | None = None,
     cpu_milli: int = 4000,  # in milli-CPU units (4000 = 4 CPUs). This means the task requires 4 whole CPUs.
-    memory_mib: int = 16000,
+    memory_mib: int = 16000,  # Make sure to have enough memory for the 2GB of shared memory set below.
     boot_disk_mib: int = 100000,
     max_retry_count: int = 1,
     max_run_duration: str = "86400s",  # 24 hours
@@ -96,6 +96,8 @@ def launch_job(
     runnable.container = batch_v1.Runnable.Container()
     runnable.container.image_uri = container_image_uri
     runnable.container.entrypoint = entrypoint  # type: ignore
+    # By default, /dev/shm is 64MB which is not enough for Pytorch
+    runnable.container.options = "--shm-size=2048m"
     runnable.container.commands = commands
 
     # Jobs can be divided into tasks. In this case, we have only one task.
