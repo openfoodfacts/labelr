@@ -96,10 +96,10 @@ def create_model_card(
     training_imgsz: int,
     training_batch_size: int,
     metrics_results_dict: dict[str, float],
-    licence: str = "agpl-3.0",
+    license: str = "agpl-3.0",
 ) -> ModelCard:
     card_data = ModelCardData(
-        license=licence,
+        license=license,
         library_name="ultralytics",
         pipeline_tag="object-detection",
         datasets=[dataset_repo_id],
