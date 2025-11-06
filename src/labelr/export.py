@@ -240,13 +240,22 @@ def export_from_hf_to_ultralytics_object_detection(
     data_dir.mkdir(parents=True, exist_ok=True)
     category_id_to_name = {}
 
+    split_map = {
+        "train": "train",
+        "val": "val",
+    }
+    if "val" not in ds and "test" in ds:
+        logger.info("val split not found, using test split instead as val")
+        split_map["val"] = "test"
+
     for split in ["train", "val"]:
+        split_target = split_map[split]
         split_labels_dir = data_dir / "labels" / split
         split_labels_dir.mkdir(parents=True, exist_ok=True)
         split_images_dir = data_dir / "images" / split
         split_images_dir.mkdir(parents=True, exist_ok=True)
 
-        for sample in tqdm.tqdm(ds[split], desc="samples"):
+        for sample in tqdm.tqdm(ds[split_target], desc="samples"):
             image_id = sample["image_id"]
 
             if download_images:

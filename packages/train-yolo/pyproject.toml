@@ -10,13 +10,18 @@ dependencies = [
     "Pillow",
     "ultralytics==8.3.223",
     "albumentations",
-    "labelr==0.4.1",
-    "wandb",
+    "labelr==0.5.0",
+    "wandb==0.22.3",
     "torch==2.9.0",
     "Jinja2==3.1.6",
-    "onnxruntime==1.23.2",
+    # ONNX Runtime is necessary to export ONNX models
+    "onnxruntime-gpu==1.23.2",
     "onnx==1.19.1",
     "onnxslim==0.1.72",
+    # TensorRT is necessary to export model to TensortRT engine format
+    "tensorrt-cu12==10.9.0.34",
+    "tensorrt-cu12-bindings",
+    "tensorrt-cu12-libs",
 ]
 
 [tool.uv.sources]
@@ -26,10 +31,29 @@ torch = [
 torchvision = [
   { index = "pytorch", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
 ]
+# We need to get TensorRT from NVIDIA's PyPI index, as as the time of writing, the linux
+# wheel were not available on the default PyPI index.
+tensorrt-cu12 = [
+  { index = "nvidia" },
+]
+tensorrt-cu12-bindings = [
+  { index = "nvidia" },
+]
+tensorrt-cu12-libs = [
+  { index = "nvidia" },
+]
 
 [[tool.uv.index]]
 # Optional name for the index.
 name = "pytorch"
 # Required URL for the index.
 url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+
+[[tool.uv.index]]
+# Optional name for the index.
+name = "nvidia"
+# Required URL for the index.
+url = "https://pypi.nvidia.com"
 explicit = true
