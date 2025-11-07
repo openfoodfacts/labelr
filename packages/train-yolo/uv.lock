@@ -1536,20 +1536,21 @@ wheels = [
 
 [[package]]
 name = "labelr"
-version = "0.6.0"
+version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "datasets" },
     { name = "google-cloud-batch" },
+    { name = "huggingface-hub" },
     { name = "imagehash" },
     { name = "label-studio-sdk" },
     { name = "more-itertools" },
     { name = "openfoodfacts" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/69/92/7b65cb7717f04628d00b88afeafdc5e3b7a6f82738d3ff04317195e5c481/labelr-0.6.0.tar.gz", hash = "sha256:a7171752b31dd207f9f04c3970994e767255fac21328194860b7c1946b5442e6", size = 34078, upload-time = "2025-11-06T15:53:37.088Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1a/c8/990d4f99b87ead8d0e68b32c3b9e9292e567c9a69a3a7bc11a43d71a2d0f/labelr-0.7.0.tar.gz", hash = "sha256:a41b2d1af2b5571e3ea4cf3b625ba9e6e7dfc31f2503449aa57902745914f2fa", size = 35142, upload-time = "2025-11-07T15:21:31.687Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5a/69/43beb891991b698f987e7bd718d054ed39a86201bd6cd23281cd6a3b8b20/labelr-0.6.0-py3-none-any.whl", hash = "sha256:ecbda7d0d9cfbe2506eaee0edb6593353604581e524d174a6f1c8c7c2c3e593e", size = 36487, upload-time = "2025-11-06T15:53:35.471Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/02/5fefb576c96d5a9fe67ba4fb5f3facf12e820fa7eacbda3b4ddeae39cc34/labelr-0.7.0-py3-none-any.whl", hash = "sha256:d6867b4b85e38d13d804440f2619542963ef14ca39b2f344ed4acf1050ca0a08", size = 37858, upload-time = "2025-11-07T15:21:30.277Z" },
 ]
 
 [[package]]
@@ -1579,7 +1580,7 @@ dependencies = [
 requires-dist = [
     { name = "albumentations" },
     { name = "jinja2", specifier = "==3.1.6" },
-    { name = "labelr", specifier = "==0.6.0" },
+    { name = "labelr", specifier = "==0.7.0" },
     { name = "onnx", specifier = "==1.19.1" },
     { name = "onnxruntime-gpu", specifier = "==1.23.2" },
     { name = "onnxslim", specifier = "==0.1.72" },

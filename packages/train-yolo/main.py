@@ -12,15 +12,16 @@ import tqdm
 import typer
 import ultralytics
 import wandb
-from datasets import Dataset, Features
-from datasets import Image as HFImage
+from datasets import Dataset
 from huggingface_hub import HfApi, ModelCard, ModelCardData
 from PIL import Image
 
+from labelr.dataset_features import OBJECT_DETECTION_DS_PREDICTION_FEATURES
 from labelr.export import (
     _pickle_sample_generator,
     export_from_hf_to_ultralytics_object_detection,
 )
+from labelr.utils import parse_hf_repo_id
 
 CARD_TEMPLATE = """
 ---
@@ -99,34 +100,6 @@ What was added:
     - `metrics_onnx.json`: metrics for the ONNX exported model
     - `metrics_tensorrt.json`: metrics for the TensorRT exported model
 """
-
-
-DS_PREDICTION_FEATURES = Features(
-    {
-        "image": HFImage(),
-        "image_with_prediction": HFImage(),
-        "image_id": datasets.Value("string"),
-        "detected": {
-            "bbox": datasets.Sequence(datasets.Sequence(datasets.Value("float32"))),
-            "category_id": datasets.Sequence(datasets.Value("int64")),
-            "category_name": datasets.Sequence(datasets.Value("string")),
-            "confidence": datasets.Sequence(datasets.Value("float32")),
-        },
-        "split": datasets.Value("string"),
-        "width": datasets.Value("int64"),
-        "height": datasets.Value("int64"),
-        "meta": {
-            "barcode": datasets.Value("string"),
-            "off_image_id": datasets.Value("string"),
-            "image_url": datasets.Value("string"),
-        },
-        "objects": {
-            "bbox": datasets.Sequence(datasets.Sequence(datasets.Value("float32"))),
-            "category_id": datasets.Sequence(datasets.Value("int64")),
-            "category_name": datasets.Sequence(datasets.Value("string")),
-        },
-    }
-)
 
 
 def create_model_card(
@@ -239,7 +212,7 @@ def create_predict_dataset(
         # image
         ds = Dataset.from_generator(
             functools.partial(_pickle_sample_generator, tmp_dir),
-            features=DS_PREDICTION_FEATURES,
+            features=OBJECT_DETECTION_DS_PREDICTION_FEATURES,
         )
         ds.to_parquet(output_path)
         typer.echo(f"Saved Hugging Face dataset as Parquet file to: {output_path}")
@@ -334,11 +307,7 @@ def main(
     dataset_dir = root_dir / "datasets"
     run_dir = (Path(__file__).parent / project / run_name).absolute()
 
-    # We can specify a revision (branch, commit sha or tag) with '@' suffix
-    if "@" in hf_repo_id:
-        hf_repo_id, revision = hf_repo_id.split("@", 1)
-    else:
-        revision = "main"
+    hf_repo_id, revision = parse_hf_repo_id(hf_repo_id)
 
     # `skip_dataset_download` is an option to skip dataset download, useful
     # for debugging locally
