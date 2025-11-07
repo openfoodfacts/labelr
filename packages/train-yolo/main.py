@@ -233,7 +233,7 @@ def create_predict_dataset(
                     record["meta"] = sample["meta"]
 
                 with open(tmp_dir / f"{i:06d}.pkl", "wb") as f:
-                    pickle.dump(sample, f)
+                    pickle.dump(record, f)
 
         # Build a Hugging Face dataset where each example contains the plotted
         # image
