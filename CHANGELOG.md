@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.7.0](https://github.com/openfoodfacts/labelr/compare/v0.6.0...v0.7.0) (2025-11-07)
+
+
+### Features
+
+* improve export & train command ([622dc80](https://github.com/openfoodfacts/labelr/commit/622dc806f89404d5b5a24626ac4ea353f6e54a96))
+* improve yolo-train script ([977e4d3](https://github.com/openfoodfacts/labelr/commit/977e4d32605f8633b8add0c23244ad1af7273812))
+
+
+### Bug Fixes
+
+* create labelr.utils.parse_hf_repo_id func ([ca98d35](https://github.com/openfoodfacts/labelr/commit/ca98d350a30249a0267dfe45a944b5b7a0a03da5))
+* fix bug where the wrong object was saved in predictions.parquet ([bc2d883](https://github.com/openfoodfacts/labelr/commit/bc2d883924efd468d2695e357a24a8b3946a0709))
+* save predictions.parquet features in labelr library ([e88cc8e](https://github.com/openfoodfacts/labelr/commit/e88cc8e26dccd103d140e3aa4340a78dffa4819b))
+
+
+### Technical
+
+* add tutorial for object detection ([0cc4d11](https://github.com/openfoodfacts/labelr/commit/0cc4d11ee5542944726fbff696ab81042d6ff202))
+* **deps:** add fiftyone as optional dependency ([d1464e2](https://github.com/openfoodfacts/labelr/commit/d1464e28b416c00b93de651d32ce9a9154aef53c))
+
 ## [0.6.0](https://github.com/openfoodfacts/labelr/compare/v0.5.0...v0.6.0) (2025-11-06)
 
 
