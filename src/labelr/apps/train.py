@@ -6,6 +6,31 @@ from google.cloud import batch_v1
 app = typer.Typer()
 
 
+AVAILABLE_OBJECT_DETECTION_MODELS = [
+    "yolov8n.pt",
+    "yolov8s.pt",
+    "yolov8m.pt",
+    "yolov8l.pt",
+    "yolov8x.pt",
+    "yolov9t.pt",
+    "yolov9s.pt",
+    "yolov9m.pt",
+    "yolov9c.pt",
+    "yolov9e.pt",
+    "yolov10n.pt",
+    "yolov10s.pt",
+    "yolov10m.pt",
+    "yolov10b.pt",
+    "yolov10l.pt",
+    "yolov10x.pt",
+    "yolo11n.pt",
+    "yolo11s.pt",
+    "yolo11m.pt",
+    "yolo11l.pt",
+    "yolo11x.pt",
+]
+
+
 @app.command()
 def train_object_detection(
     wandb_project: str = typer.Option(
@@ -25,9 +50,20 @@ def train_object_detection(
     ),
     epochs: int = typer.Option(100, help="Number of training epochs."),
     imgsz: int = typer.Option(640, help="Size of the image during training."),
-    batch_size: int = typer.Option(64, help="Batch size for training."),
+    batch: int = typer.Option(64, help="Batch size for training."),
+    model_name: str = typer.Option(
+        "yolov8n.pt",
+        help="The YOLO model variant to use for training. "
+        "This should be a valid Ultralytics model name.",
+    ),
 ):
     """Train an object detection model."""
+
+    if model_name not in AVAILABLE_OBJECT_DETECTION_MODELS:
+        raise typer.BadParameter(
+            f"Invalid model name '{model_name}'. Available models are: {', '.join(AVAILABLE_OBJECT_DETECTION_MODELS)}"
+        )
+
     env_variables = {
         "HF_REPO_ID": hf_repo_id,
         "HF_TRAINED_MODEL_REPO_ID": hf_trained_model_repo_id,
@@ -37,8 +73,9 @@ def train_object_detection(
         "WANDB_API_KEY": wandb_api_key,
         "EPOCHS": str(epochs),
         "IMGSZ": str(imgsz),
-        "BATCH_SIZE": str(batch_size),
+        "BATCH_SIZE": str(batch),
         "USE_AWS_IMAGE_CACHE": "False",
+        "YOLO_MODEL_NAME": model_name,
     }
     job_name = "train-yolo-job"
     job_name = job_name + "-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")

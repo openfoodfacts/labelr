@@ -36,11 +36,18 @@ def export_from_ls_to_hf_object_detection(
     project_id: int,
     merge_labels: bool = False,
     use_aws_cache: bool = True,
+    revision: str = "main",
 ):
     if merge_labels:
         label_names = ["object"]
 
-    logger.info("Project ID: %d, label names: %s", project_id, label_names)
+    logger.info(
+        "Project ID: %d, label names: %s, repo_id: %s, revision: %s",
+        project_id,
+        label_names,
+        repo_id,
+        revision,
+    )
 
     for split in ["train", "val"]:
         logger.info("Processing split: %s", split)
@@ -70,7 +77,13 @@ def export_from_ls_to_hf_object_detection(
                 functools.partial(_pickle_sample_generator, tmp_dir),
                 features=HF_DS_OBJECT_DETECTION_FEATURES,
             )
-            hf_ds.push_to_hub(repo_id, split=split)
+            hf_ds.push_to_hub(
+                repo_id,
+                split=split,
+                revision=revision,
+                # Create a PR if not pushing to main branch
+                create_pr=revision != "main",
+            )
 
 
 def export_from_ls_to_ultralytics_object_detection(
@@ -234,7 +247,7 @@ def export_from_hf_to_ultralytics_object_detection(
             is True. Defaults to True.
         revision (str): The dataset revision to load. Defaults to 'main'.
     """
-    logger.info("Repo ID: %s", repo_id)
+    logger.info("Repo ID: %s, revision: %s", repo_id, revision)
     ds = datasets.load_dataset(repo_id, revision=revision)
     data_dir = output_dir / "data"
     data_dir.mkdir(parents=True, exist_ok=True)

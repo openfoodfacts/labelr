@@ -152,7 +152,10 @@ def export(
     label_studio_url: Optional[str] = LABEL_STUDIO_DEFAULT_URL,
     output_dir: Annotated[
         Optional[Path],
-        typer.Option(help="Path to the output directory", file_okay=False),
+        typer.Option(
+            help="Path to the output directory. Only used if the destintation (`to`) is `ultralytics`",
+            file_okay=False,
+        ),
     ] = None,
     dataset_dir: Annotated[
         Optional[Path],
@@ -200,11 +203,18 @@ def export(
             help="Use the AWS S3 cache for image downloads instead of images.openfoodfacts.org, "
             "it is ignored if the export format is not Ultralytics"
         ),
-    ] = True,
+    ] = False,
     merge_labels: Annotated[
         bool,
         typer.Option(help="Merge multiple labels into a single label"),
     ] = False,
+    revision: Annotated[
+        str,
+        typer.Option(
+            help="Revision (branch, tag or commit) for the Hugging Face Datasets repository. "
+            "Only used when importing from or exporting to Hugging Face Datasets."
+        ),
+    ] = "main",
 ):
     """Export Label Studio annotation, either to Hugging Face Datasets or
     local files (ultralytics format)."""
@@ -261,6 +271,7 @@ def export(
                 project_id=typing.cast(int, project_id),
                 merge_labels=merge_labels,
                 use_aws_cache=use_aws_cache,
+                revision=revision,
             )
         elif to == ExportDestination.ultralytics:
             export_from_ls_to_ultralytics_object_detection(
@@ -286,6 +297,7 @@ def export(
                 download_images=download_images,
                 error_raise=error_raise,
                 use_aws_cache=use_aws_cache,
+                revision=revision,
             )
         else:
             raise typer.BadParameter("Unsupported export format")
