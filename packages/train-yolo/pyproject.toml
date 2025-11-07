@@ -10,7 +10,7 @@ dependencies = [
     "Pillow",
     "ultralytics==8.3.223",
     "albumentations",
-    "labelr==0.5.0",
+    "labelr==0.6.0",
     "wandb==0.22.3",
     "torch==2.9.0",
     "Jinja2==3.1.6",

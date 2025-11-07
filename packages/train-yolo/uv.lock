@@ -1536,7 +1536,7 @@ wheels = [
 
 [[package]]
 name = "labelr"
-version = "0.5.0"
+version = "0.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "datasets" },
@@ -1547,9 +1547,9 @@ dependencies = [
     { name = "openfoodfacts" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/72/99/8714df49555295d3d5bcc42dac68b61096db4de2a3ed813ebadc33b5ac1d/labelr-0.5.0.tar.gz", hash = "sha256:60e0a10586ae7c7f85cc0f61fac1e583d3a0a67846abb4399bbdf42f76e21f34", size = 33976, upload-time = "2025-11-05T10:58:12.038Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/69/92/7b65cb7717f04628d00b88afeafdc5e3b7a6f82738d3ff04317195e5c481/labelr-0.6.0.tar.gz", hash = "sha256:a7171752b31dd207f9f04c3970994e767255fac21328194860b7c1946b5442e6", size = 34078, upload-time = "2025-11-06T15:53:37.088Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/87/42/47f7e990b7210bb868712bb7286287021b5f887ae3515075eae88175e505/labelr-0.5.0-py3-none-any.whl", hash = "sha256:4c3a694fcd51874bd422f04f1c494d6d76d69b7d4bf960edc66e435509f02d49", size = 36395, upload-time = "2025-11-05T10:58:10.577Z" },
+    { url = "https://files.pythonhosted.org/packages/5a/69/43beb891991b698f987e7bd718d054ed39a86201bd6cd23281cd6a3b8b20/labelr-0.6.0-py3-none-any.whl", hash = "sha256:ecbda7d0d9cfbe2506eaee0edb6593353604581e524d174a6f1c8c7c2c3e593e", size = 36487, upload-time = "2025-11-06T15:53:35.471Z" },
 ]
 
 [[package]]
@@ -1579,7 +1579,7 @@ dependencies = [
 requires-dist = [
     { name = "albumentations" },
     { name = "jinja2", specifier = "==3.1.6" },
-    { name = "labelr", specifier = "==0.5.0" },
+    { name = "labelr", specifier = "==0.6.0" },
     { name = "onnx", specifier = "==1.19.1" },
     { name = "onnxruntime-gpu", specifier = "==1.23.2" },
     { name = "onnxslim", specifier = "==0.1.72" },

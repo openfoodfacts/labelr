@@ -67,11 +67,23 @@ Dependency versions:
 
 ## Evaluation
 
-The model was evaluated using the following metrics:
+The following evaluation metrics were obtained after training the model:
 
-{% for metric_name, metric_value in metrics_results_dict.items() %}
+{% for metric_name, metric_value in metrics_results_dict["pytorch"].items() %}
 - **{{ metric_name }}:** {{ metric_value }}
 {% endfor %}
+
+### Evaluation on exported models
+
+The model was also evaluated after exporting to ONNX and TensorRT formats. The following metrics were obtained:
+
+{% for format_name in ["onnx", "tensorrt"] %}
+#### {{ format_name | upper }} export
+{% for metric_name, metric_value in metrics_results_dict[format_name].items() %}
+- **{{ metric_name }}:** {{ metric_value }}
+{% endfor %}
+{% endfor %}
+
 
 ## Files
 
@@ -82,6 +94,10 @@ What was added:
 - an ONNX export of the trained model (best model), stored in `weights/model.onnx`.
 - a Parquet file containing predictions on the full dataset, stored in `predictions.parquet`.
 - a TensorRT engine export of the trained model, stored in `weights/model.engine`.
+- metrics JSON files for each exported model format, stored in `metrics_*.json`:
+    - `metrics.json`: metrics for the original PyTorch model
+    - `metrics_onnx.json`: metrics for the ONNX exported model
+    - `metrics_tensorrt.json`: metrics for the TensorRT exported model
 """
 
 
@@ -121,7 +137,7 @@ def create_model_card(
     training_epochs: int,
     training_imgsz: int,
     training_batch_size: int,
-    metrics_results_dict: dict[str, float],
+    metrics_results_dict: dict[str, dict[str, float]],
     license: str = "agpl-3.0",
     wandb_run_url: str | None = None,
 ) -> ModelCard:
@@ -338,9 +354,11 @@ def main(
     model = ultralytics.YOLO(model_name, task="detect")
     model.add_callback("on_train_start", register_wanb_run_url)
     typer.echo(f"Starting training run: {run_name}")
+
+    dataset_path = dataset_dir / "data.yaml"
     # After training, ultralytics re-loads the best model weights
     model.train(
-        data=dataset_dir / "data.yaml",
+        data=dataset_path,
         imgsz=imgsz,
         batch=batch,
         epochs=epochs,
@@ -370,8 +388,9 @@ def main(
     # best.onnx file is generated during TensorRT export
     (run_dir / "weights/best.onnx").unlink()
 
-    metrics = model.metrics
-    metrics_results_dict: dict[str, float] = metrics.results_dict
+    metrics_results_dict: dict[str, dict[str, float]] = {"pytorch": {}}
+    metrics_results_dict["pytorch"] = model.metrics.results_dict
+    (run_dir / "metrics.json").write_text(model.metrics.to_json())
 
     ds = datasets.load_dataset(hf_repo_id, revision=revision)
     # After training, run prediction on the full dataset and save results
@@ -381,6 +400,22 @@ def main(
         output_path=run_dir / "predictions.parquet",
         imgsz=imgsz,
     )
+
+    typer.echo("Running validation on exported models to get metrics")
+    # Run validation to get metrics for exported models
+    for exported_model_path, format_name in [
+        (run_dir / "weights/model.onnx", "onnx"),
+        (run_dir / "weights/model.engine", "tensorrt"),
+    ]:
+        model = ultralytics.YOLO(exported_model_path, task="detect")
+        metrics = model.val(
+            data=dataset_path,
+            imgsz=imgsz,
+            batch=batch,
+        )
+        metrics_results_dict[format_name] = metrics.results_dict
+        # Saving metrics as JSON file
+        (run_dir / f"metrics_{format_name}.json").write_text(metrics.to_json())
 
     typer.echo(f"Uploading trained model to Hugging Face repo: {trained_model_repo_id}")
     hf_api.create_repo(
