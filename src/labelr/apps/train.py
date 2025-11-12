@@ -28,6 +28,11 @@ AVAILABLE_OBJECT_DETECTION_MODELS = [
     "yolo11m.pt",
     "yolo11l.pt",
     "yolo11x.pt",
+    "yolo12n.pt",
+    "yolo12s.pt",
+    "yolo12m.pt",
+    "yolo12l.pt",
+    "yolo12x.pt",
 ]
 
 
