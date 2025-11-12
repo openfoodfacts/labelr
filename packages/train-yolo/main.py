@@ -357,9 +357,7 @@ def main(
     # best.onnx file is generated during TensorRT export
     (run_dir / "weights/best.onnx").unlink()
 
-    metrics_results_dict: dict[str, dict[str, float]] = {"pytorch": {}}
-    metrics_results_dict["pytorch"] = model.metrics.results_dict
-    (run_dir / "metrics.json").write_text(model.metrics.to_json())
+    metrics_results_dict: dict[str, dict[str, float]] = {}
 
     ds = datasets.load_dataset(hf_repo_id, revision=revision)
     # After training, run prediction on the full dataset and save results
@@ -373,6 +371,7 @@ def main(
     typer.echo("Running validation on exported models to get metrics")
     # Run validation to get metrics for exported models
     for exported_model_path, format_name in [
+        (run_dir / "weights/best.pt", "pytorch"),
         (run_dir / "weights/model.onnx", "onnx"),
         (run_dir / "weights/model.engine", "tensorrt"),
     ]:
@@ -384,7 +383,8 @@ def main(
         )
         metrics_results_dict[format_name] = metrics.results_dict
         # Saving metrics as JSON file
-        (run_dir / f"metrics_{format_name}.json").write_text(metrics.to_json())
+        suffix = "" if format_name == "pytorch" else f"_{format_name}"
+        (run_dir / f"metrics{suffix}.json").write_text(metrics.to_json())
 
     typer.echo(f"Uploading trained model to Hugging Face repo: {trained_model_repo_id}")
     hf_api.create_repo(
