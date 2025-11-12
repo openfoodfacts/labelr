@@ -77,13 +77,7 @@ def export_from_ls_to_hf_object_detection(
                 functools.partial(_pickle_sample_generator, tmp_dir),
                 features=HF_DS_OBJECT_DETECTION_FEATURES,
             )
-            hf_ds.push_to_hub(
-                repo_id,
-                split=split,
-                revision=revision,
-                # Create a PR if not pushing to main branch
-                create_pr=revision != "main",
-            )
+            hf_ds.push_to_hub(repo_id, split=split, revision=revision)
 
 
 def export_from_ls_to_ultralytics_object_detection(
