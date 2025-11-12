@@ -112,7 +112,7 @@ def convert_object_detection_dataset(
     Studio format, and save it to a JSON file."""
     from datasets import load_dataset
 
-    from labelr.sample import format_object_detection_sample_from_hf
+    from labelr.sample import format_object_detection_sample_from_hf_to_ls
 
     logger.info("Loading dataset: %s", repo_id)
     ds = load_dataset(repo_id)
@@ -122,7 +122,7 @@ def convert_object_detection_dataset(
         for split in ds.keys():
             logger.info("Processing split: %s", split)
             for sample in ds[split]:
-                label_studio_sample = format_object_detection_sample_from_hf(
+                label_studio_sample = format_object_detection_sample_from_hf_to_ls(
                     sample, split=split
                 )
                 f.write(json.dumps(label_studio_sample) + "\n")

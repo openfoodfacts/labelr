@@ -13,7 +13,7 @@ from PIL import ImageOps
 logger = logging.getLogger(__name__)
 
 
-def format_annotation_results_from_hf(
+def format_annotation_results_from_hf_to_ls(
     objects: dict, image_width: int, image_height: int
 ):
     """Format annotation results from a HF object detection dataset into Label
@@ -59,12 +59,12 @@ def format_annotation_results_from_hf(
     return annotation_results
 
 
-def format_object_detection_sample_from_hf(hf_sample: dict, split: str) -> dict:
+def format_object_detection_sample_from_hf_to_ls(hf_sample: dict, split: str) -> dict:
     hf_meta = hf_sample["meta"]
     objects = hf_sample["objects"]
     image_width = hf_sample["width"]
     image_height = hf_sample["height"]
-    annotation_results = format_annotation_results_from_hf(
+    annotation_results = format_annotation_results_from_hf_to_ls(
         objects, image_width, image_height
     )
     image_id = hf_sample["image_id"]
