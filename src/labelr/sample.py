@@ -1,11 +1,14 @@
 import logging
 import random
 import string
+import typing
 
 import datasets
+import PIL
 from openfoodfacts import Flavor
 from openfoodfacts.barcode import normalize_barcode
 from openfoodfacts.images import download_image, generate_image_url
+from PIL import ImageOps
 
 logger = logging.getLogger(__name__)
 
@@ -149,8 +152,24 @@ def format_object_detection_sample_to_hf(
     annotations: list[dict],
     label_names: list[str],
     merge_labels: bool = False,
-    use_aws_cache: bool = True,
+    use_aws_cache: bool = False,
 ) -> dict | None:
+    """Format a Label Studio object detection sample to Hugging Face format.
+
+    Args:
+        task_data: The task data from Label Studio.
+        annotations: The annotations from Label Studio.
+        label_names: The list of label names.
+        merge_labels: Whether to merge all labels into a single label (the
+            first label in `label_names`).
+        use_aws_cache: Whether to use AWS cache when downloading images.
+
+    Returns:
+        The formatted sample, or None in the following cases:
+        - More than one annotation is found
+        - No annotation is found
+        - An error occurs when downloading the image
+    """
     if len(annotations) > 1:
         logger.info("More than one annotation found, skipping")
         return None
@@ -186,6 +205,13 @@ def format_object_detection_sample_to_hf(
         logger.error("Failed to download image: %s", image_url)
         return None
 
+    # Correct image orientation using EXIF data
+    # Label Studio provides bounding boxes based on the displayed image (after
+    # eventual EXIF rotation), so we need to apply the same transformation to
+    # the image.
+    # Indeed, Hugging Face stores images without applying EXIF rotation, and
+    # EXIF data is not preserved in the dataset.
+    ImageOps.exif_transpose(typing.cast(PIL.Image.Image, image), in_place=True)
     return {
         "image_id": task_data["image_id"],
         "image": image,
