@@ -4,6 +4,7 @@ import typer
 from openfoodfacts.utils import get_logger
 
 from labelr.apps import datasets as dataset_app
+from labelr.apps import evaluate as evaluate_app
 from labelr.apps import projects as project_app
 from labelr.apps import train as train_app
 from labelr.apps import users as user_app
@@ -74,6 +75,12 @@ app.add_typer(
     train_app.app,
     name="train",
     help="Train models",
+)
+
+app.add_typer(
+    evaluate_app.app,
+    name="evaluate",
+    help="Visualize and evaluate trained models",
 )
 
 if __name__ == "__main__":
