@@ -47,6 +47,9 @@ def train_object_detection(
         help="The Hugging Face token, used to push the trained model to Hugging Face Hub.",
     ),
     run_name: str = typer.Option(..., help="A name for the training run."),
+    add_date_to_run_name: bool = typer.Option(
+        True, help="Whether to append the date to the run name."
+    ),
     hf_repo_id: str = typer.Option(
         ..., help="The Hugging Face dataset repository ID to use to train."
     ),
@@ -69,6 +72,11 @@ def train_object_detection(
             f"Invalid model name '{model_name}'. Available models are: {', '.join(AVAILABLE_OBJECT_DETECTION_MODELS)}"
         )
 
+    datestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+
+    if add_date_to_run_name:
+        run_name = f"{run_name}-{datestamp}"
+
     env_variables = {
         "HF_REPO_ID": hf_repo_id,
         "HF_TRAINED_MODEL_REPO_ID": hf_trained_model_repo_id,
@@ -82,8 +90,12 @@ def train_object_detection(
         "USE_AWS_IMAGE_CACHE": "False",
         "YOLO_MODEL_NAME": model_name,
     }
-    job_name = "train-yolo-job"
-    job_name = job_name + "-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+
+    job_name = f"train-yolo-job-{run_name}"
+    if not add_date_to_run_name:
+        # Ensure job name is unique by adding a datestamp if date is not added to run name
+        job_name = f"{job_name}-{datestamp}"
+
     job = launch_job(
         job_name=job_name,
         container_image_uri="europe-west9-docker.pkg.dev/robotoff/gcf-artifacts/train-yolo",
