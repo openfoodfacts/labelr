@@ -19,8 +19,8 @@ def visualize(
         ),
     ],
     dataset_name: Annotated[
-        str, typer.Option(..., help="Name of the FiftyOne dataset to create.")
-    ],
+        str | None, typer.Option(..., help="Name of the FiftyOne dataset to create.")
+    ] = None,
     persistent: Annotated[
         bool,
         typer.Option(
@@ -29,6 +29,9 @@ def visualize(
         ),
     ] = False,
 ):
+    if dataset_name is None:
+        dataset_name = hf_repo_id.replace("/", "-").replace("@", "-")
+
     _visualize(
         hf_repo_id=hf_repo_id,
         dataset_name=dataset_name,
