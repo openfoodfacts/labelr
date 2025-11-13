@@ -335,6 +335,13 @@ def main(
         name=run_name,
     )
 
+    if batch < 0:
+        # If batch size is set to -1, ultralytics uses the maximum batch size
+        # that fits in the GPU memory. We need to get the actual batch size
+        # used, as it will be needed later during validation.
+        # The actual batch size is stored in model.trainer.args.batch
+        batch = model.trainer.args.batch
+
     # Export the trained model to ONNX and TensorRT format
     model.export(
         format="onnx",
