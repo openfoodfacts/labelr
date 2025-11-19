@@ -344,10 +344,12 @@ def main(
     model.export(
         format="onnx",
         # Include NMS in the exported model
-        nms=True,
         # Ultralytics tweaks the ONNX opset when exporting for GPUs
         # to prevent compatibility issues
         device="gpu",
+        # We use opset 20, as it's the latest supported by our version of
+        # Triton (25.02)
+        opset=20,
     )
     # Rename the exported model to a standard name
     (run_dir / "weights/best.onnx").rename(run_dir / "weights/model.onnx")
