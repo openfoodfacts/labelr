@@ -18,10 +18,6 @@ dependencies = [
     "onnxruntime-gpu==1.23.2",
     "onnx==1.19.1",
     "onnxslim==0.1.72",
-    # TensorRT is necessary to export model to TensortRT engine format
-    "tensorrt-cu12==10.9.0.34",
-    "tensorrt-cu12-bindings",
-    "tensorrt-cu12-libs",
 ]
 
 [tool.uv.sources]
@@ -30,17 +26,6 @@ torch = [
 ]
 torchvision = [
   { index = "pytorch", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
-]
-# We need to get TensorRT from NVIDIA's PyPI index, as as the time of writing, the linux
-# wheel were not available on the default PyPI index.
-tensorrt-cu12 = [
-  { index = "nvidia" },
-]
-tensorrt-cu12-bindings = [
-  { index = "nvidia" },
-]
-tensorrt-cu12-libs = [
-  { index = "nvidia" },
 ]
 
 [[tool.uv.index]]

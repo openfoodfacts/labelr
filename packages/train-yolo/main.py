@@ -78,7 +78,7 @@ The following evaluation metrics were obtained after training the model:
 
 The model was also evaluated after exporting to ONNX and TensorRT formats. The following metrics were obtained:
 
-{% for format_name in ["onnx", "tensorrt"] %}
+{% for format_name in ["onnx"] %}
 #### {{ format_name | upper }} export
 {% for metric_name, metric_value in metrics_results_dict[format_name].items() %}
 - **{{ metric_name }}:** {{ metric_value }}
@@ -94,11 +94,9 @@ What was added:
 
 - an ONNX export of the trained model (best model), stored in `weights/model.onnx`.
 - a Parquet file containing predictions on the full dataset, stored in `predictions.parquet`.
-- a TensorRT engine export of the trained model, stored in `weights/model.engine`.
 - metrics JSON files for each exported model format, stored in `metrics_*.json`:
     - `metrics.json`: metrics for the original PyTorch model
     - `metrics_onnx.json`: metrics for the ONNX exported model
-    - `metrics_tensorrt.json`: metrics for the TensorRT exported model
 """
 
 
@@ -354,16 +352,6 @@ def main(
     # Rename the exported model to a standard name
     (run_dir / "weights/best.onnx").rename(run_dir / "weights/model.onnx")
 
-    model.export(
-        format="engine",
-        # Include NMS in the exported model
-        nms=True,
-    )
-    # Rename the exported model to a standard name
-    (run_dir / "weights/best.engine").rename(run_dir / "weights/model.engine")
-    # best.onnx file is generated during TensorRT export
-    (run_dir / "weights/best.onnx").unlink()
-
     metrics_results_dict: dict[str, dict[str, float]] = {}
 
     ds = datasets.load_dataset(hf_repo_id, revision=revision)
@@ -380,7 +368,6 @@ def main(
     for exported_model_path, format_name in [
         (run_dir / "weights/best.pt", "pytorch"),
         (run_dir / "weights/model.onnx", "onnx"),
-        (run_dir / "weights/model.engine", "tensorrt"),
     ]:
         model = ultralytics.YOLO(exported_model_path, task="detect")
         metrics = model.val(
