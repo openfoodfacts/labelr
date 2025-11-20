@@ -43,14 +43,20 @@ def import_data(
     api_key: Annotated[str, typer.Option(envvar="LABEL_STUDIO_API_KEY")],
     project_id: Annotated[int, typer.Option(help="Label Studio Project ID")],
     dataset_path: Annotated[
-        Path, typer.Option(help="Path to the Label Studio dataset file", file_okay=True)
+        Path,
+        typer.Option(
+            help="Path to the Label Studio dataset JSONL file", file_okay=True
+        ),
     ],
     label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
     batch_size: int = 25,
 ):
     """Import tasks from a dataset file to a Label Studio project.
 
-    The dataset file should contain one JSON object per line."""
+    The dataset file must be a JSONL file: it should contain one JSON object
+    per line. To generate such a file, you can use the `create-dataset-file`
+    command.
+    """
     import more_itertools
     import tqdm
     from label_studio_sdk.client import LabelStudio
@@ -375,11 +381,16 @@ def create_dataset_file(
         typer.Option(help="Path to a list of image URLs", exists=True),
     ],
     output_file: Annotated[
-        Path, typer.Option(help="Path to the output JSON file", exists=False)
+        Path, typer.Option(help="Path to the output JSONL file", exists=False)
     ],
 ):
     """Create a Label Studio object detection dataset file from a list of
-    image URLs."""
+    image URLs.
+
+    The output file is a JSONL file. It cannot be imported directly in Label
+    Studio (which requires a JSON file as input), the `import-data` command
+    should be used to import the generated dataset file.
+    """
     from urllib.parse import urlparse
 
     import tqdm
