@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.8.0](https://github.com/openfoodfacts/labelr/compare/v0.7.0...v0.8.0) (2025-11-21)
+
+
+### Features
+
+* add command to show HF sample ([1ec8e24](https://github.com/openfoodfacts/labelr/commit/1ec8e24a3ecc23f9fd3bf83e9fc7be837eee54b1))
+* add module to visualize predictions using fiftyone ([2503ce8](https://github.com/openfoodfacts/labelr/commit/2503ce87962acb9175585c7cfc5f8625d200177d))
+* **train-yolo:** allow yolo12 models ([d3c6f47](https://github.com/openfoodfacts/labelr/commit/d3c6f478cb5235f009c1ab2695ebbe46dc8872e6))
+
+
+### Bug Fixes
+
+* **evaluate:** make --dataset-name optional ([89a8640](https://github.com/openfoodfacts/labelr/commit/89a86408f2f36baf550db37e8baffad99cac13f7))
+* **export:** fix issue when exporting ds from LS to HF ([a01e591](https://github.com/openfoodfacts/labelr/commit/a01e59183cda84df8710176792b58c0814ec8eed))
+* fix batch size for validation ([a821d9b](https://github.com/openfoodfacts/labelr/commit/a821d9b1acde2c301c6d92eb1aef97dfed92c015))
+* minor update on command help text ([46fc1ad](https://github.com/openfoodfacts/labelr/commit/46fc1ade40dc6b96cec725978eec5fbde12f42fb))
+* **object-detection:** don't export models with NMS and pin opset ([0c67c53](https://github.com/openfoodfacts/labelr/commit/0c67c53d380b8cea43fa1b7dbd854caf68bf5064))
+* **object-detection:** don't export to TensorRT ([8ca9558](https://github.com/openfoodfacts/labelr/commit/8ca95584436341d71ce0b7d2f5dc47d9a1db9743))
+* rename some functions ([f36488c](https://github.com/openfoodfacts/labelr/commit/f36488caca6673a0a46405c81ec1d55f3cadc6c0))
+* rotate image wrt EXIF Orientation when generating hf sample ([8646459](https://github.com/openfoodfacts/labelr/commit/86464590304826ca9c40c1045715d98e8cb56a73))
+* **train-yolo:** run validation using best model for pytorch ([d434ae1](https://github.com/openfoodfacts/labelr/commit/d434ae1c63a06f4cbfc470c08d79720b9195d960))
+* **train:** automatically add datestamp at the end of run name ([b5fa5e3](https://github.com/openfoodfacts/labelr/commit/b5fa5e3292529e5f2787a8965b791388c898e5d1))
+
+
+### Technical
+
+* create a labelr.evaluate.object_detection module ([2a50a1b](https://github.com/openfoodfacts/labelr/commit/2a50a1bb797c0200fdf2e23e0f244468a170cee6))
+* **deps:** add uv.lock ([90627ad](https://github.com/openfoodfacts/labelr/commit/90627adfe968f70d429e18f206dfedc69679e7c0))
+* improve docstring in projects app ([6be09e3](https://github.com/openfoodfacts/labelr/commit/6be09e34688622e42552c083b8ac36205a1aa2da))
+* speedup CLI loading ([8d1f51f](https://github.com/openfoodfacts/labelr/commit/8d1f51ff8a09e114b76a1ad65daa924f1cd39674))
+* **train-yolo:** replace definitions and funcs by labelr ([0d34879](https://github.com/openfoodfacts/labelr/commit/0d348791fca759dd29aaf7855c2c791ad6da3a52))
+
 ## [0.7.0](https://github.com/openfoodfacts/labelr/compare/v0.6.0...v0.7.0) (2025-11-07)
 
 
