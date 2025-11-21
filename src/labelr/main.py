@@ -62,12 +62,12 @@ def predict(
 app.add_typer(
     ls_app.app,
     name="ls",
-    help="Manage Label Studio projects (create, import data, etc.)",
+    help="Manage Label Studio projects (create, import data, etc.).",
 )
 app.add_typer(
     hf_app.app,
     name="hf",
-    help="Manage Hugging Face Datasets repositories",
+    help="Manage Hugging Face Datasets repositories.",
 )
 app.add_typer(
     dataset_app.app,
@@ -77,12 +77,12 @@ app.add_typer(
 app.add_typer(
     train_app.app,
     name="train",
-    help="Train models",
+    help="Train models.",
 )
 app.add_typer(
     evaluate_app.app,
     name="evaluate",
-    help="Visualize and evaluate trained models",
+    help="Visualize and evaluate trained models.",
 )
 
 if __name__ == "__main__":
