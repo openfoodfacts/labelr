@@ -443,3 +443,30 @@ def create_config_file(
     config = create_object_detection_label_config(labels)
     output_file.write_text(config)
     logger.info("Label config file created: %s", output_file)
+
+
+@app.command()
+def list_users(
+    api_key: Annotated[str, typer.Option(envvar="LABEL_STUDIO_API_KEY")],
+    label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
+):
+    """List all users in Label Studio."""
+    from label_studio_sdk.client import LabelStudio
+
+    ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
+
+    for user in ls.users.list():
+        print(f"{user.id:02d}: {user.email}")
+
+
+@app.command()
+def delete_user(
+    user_id: int,
+    api_key: Annotated[str, typer.Option(envvar="LABEL_STUDIO_API_KEY")],
+    label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
+):
+    """Delete a user from Label Studio."""
+    from label_studio_sdk.client import LabelStudio
+
+    ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
+    ls.users.delete(user_id)
