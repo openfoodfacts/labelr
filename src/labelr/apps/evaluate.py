@@ -6,7 +6,7 @@ app = typer.Typer()
 
 
 @app.command()
-def visualize(
+def visualize_object_detection(
     hf_repo_id: Annotated[
         str,
         typer.Option(
@@ -27,12 +27,14 @@ def visualize(
         ),
     ] = False,
 ):
-    from labelr.evaluate import visualize as _visualize
+    """Visualize object detection model predictions stored in a Hugging Face
+    repository using FiftyOne."""
+    from labelr.evaluate import object_detection
 
     if dataset_name is None:
         dataset_name = hf_repo_id.replace("/", "-").replace("@", "-")
 
-    _visualize(
+    object_detection.visualize(
         hf_repo_id=hf_repo_id,
         dataset_name=dataset_name,
         persistent=persistent,
