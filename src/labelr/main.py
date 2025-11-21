@@ -5,7 +5,7 @@ from openfoodfacts.utils import get_logger
 
 from labelr.apps import datasets as dataset_app
 from labelr.apps import evaluate as evaluate_app
-from labelr.apps import projects as project_app
+from labelr.apps import label_studio as ls_app
 from labelr.apps import train as train_app
 from labelr.apps import users as user_app
 
@@ -61,8 +61,8 @@ def predict(
 
 app.add_typer(user_app.app, name="users", help="Manage Label Studio users")
 app.add_typer(
-    project_app.app,
-    name="projects",
+    ls_app.app,
+    name="ls",
     help="Manage Label Studio projects (create, import data, etc.)",
 )
 app.add_typer(

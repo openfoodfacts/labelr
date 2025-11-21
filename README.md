@@ -52,7 +52,7 @@ Once you have a Label Studio instance running, you can create a project easily. 
 For an object detection task, a command allows you to create the configuration file automatically:
 
 ```bash
-labelr projects create-config --labels 'label1' --labels 'label2' --output-file label_config.xml
+labelr ls create-config --labels 'label1' --labels 'label2' --output-file label_config.xml
 ```
 
 where `label1` and `label2` are the labels you want to use for the object detection task, and `label_config.xml` is the output file that will contain the configuration.
@@ -60,17 +60,19 @@ where `label1` and `label2` are the labels you want to use for the object detect
 Then, you can create a project on Label Studio with the following command:
 
 ```bash
-labelr projects create --title my_project --api-key API_KEY --config-file label_config.xml
+labelr ls create --title my_project --api-key API_KEY --config-file label_config.xml
 ```
 
 where `API_KEY` is the API key of the Label Studio instance (API key is available at Account page), and `label_config.xml` is the configuration file of the project.
+
+`ls` stands for Label Studio in the CLI.
 
 #### Create a dataset file
 
 If you have a list of images, for an object detection task, you can quickly create a dataset file with the following command:
 
 ```bash
-labelr projects create-dataset-file --input-file image_urls.txt --output-file dataset.json
+labelr ls create-dataset-file --input-file image_urls.txt --output-file dataset.json
 ```
 
 where `image_urls.txt` is a file containing the URLs of the images, one per line, and `dataset.json` is the output file.
@@ -80,7 +82,7 @@ where `image_urls.txt` is a file containing the URLs of the images, one per line
 Next, import the generated data to a project with the following command:
 
 ```bash
-labelr projects import-data --project-id PROJECT_ID --dataset-path dataset.json
+labelr ls import-data --project-id PROJECT_ID --dataset-path dataset.json
 ```
 
 where `PROJECT_ID` is the ID of the project you created.
@@ -96,7 +98,7 @@ To accelerate annotation, you can pre-annotate the images with an object detecti
 To pre-annotate the data with Triton, use the following command:
 
 ```bash
-labelr projects add-prediction --project-id PROJECT_ID --backend ultralytics --labels 'product' --labels 'price tag' --label-mapping '{"price tag": "price-tag"}'
+labelr ls add-prediction --project-id PROJECT_ID --backend ultralytics --labels 'product' --labels 'price tag' --label-mapping '{"price tag": "price-tag"}'
 ```
 
 where `labels` is the list of labels to use for the object detection task (you can add as many labels as you want).
