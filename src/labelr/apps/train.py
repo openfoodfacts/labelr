@@ -1,7 +1,6 @@
 import datetime
 
 import typer
-from google.cloud import batch_v1
 
 app = typer.Typer()
 
@@ -129,7 +128,7 @@ def launch_job(
     accelerators_count: int = 1,
     region: str = "europe-west4",
     install_gpu_drivers: bool = True,
-) -> batch_v1.Job:
+):
     """This method creates a Batch Job on GCP.
 
     Sources:
@@ -143,6 +142,8 @@ def launch_job(
     Returns:
         Batch job information.
     """
+    from google.cloud import batch_v1
+
     client = batch_v1.BatchServiceClient()
 
     # Define what will be done as part of the job.

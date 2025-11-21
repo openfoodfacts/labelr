@@ -5,6 +5,7 @@ from openfoodfacts.utils import get_logger
 
 from labelr.apps import datasets as dataset_app
 from labelr.apps import evaluate as evaluate_app
+from labelr.apps import hugging_face as hf_app
 from labelr.apps import label_studio as ls_app
 from labelr.apps import train as train_app
 
@@ -64,17 +65,20 @@ app.add_typer(
     help="Manage Label Studio projects (create, import data, etc.)",
 )
 app.add_typer(
+    hf_app.app,
+    name="hf",
+    help="Manage Hugging Face Datasets repositories",
+)
+app.add_typer(
     dataset_app.app,
     name="datasets",
     help="Manage datasets (convert, export, check, etc.)",
 )
-
 app.add_typer(
     train_app.app,
     name="train",
     help="Train models",
 )
-
 app.add_typer(
     evaluate_app.app,
     name="evaluate",

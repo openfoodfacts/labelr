@@ -2,8 +2,6 @@ from typing import Annotated
 
 import typer
 
-from labelr.evaluate import visualize as _visualize
-
 app = typer.Typer()
 
 
@@ -29,6 +27,8 @@ def visualize(
         ),
     ] = False,
 ):
+    from labelr.evaluate import visualize as _visualize
+
     if dataset_name is None:
         dataset_name = hf_repo_id.replace("/", "-").replace("@", "-")
 

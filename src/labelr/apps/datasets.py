@@ -1,3 +1,6 @@
+"""Commands to manage datasets local datasets and export between platforms
+(Label Studio, HuggingFace Hub, local dataset,...)."""
+
 import json
 import random
 import shutil
@@ -10,7 +13,6 @@ from openfoodfacts import Flavor
 from openfoodfacts.utils import get_logger
 
 from labelr.export import export_from_ultralytics_to_hf
-from labelr.utils import parse_hf_repo_id
 
 from ..config import LABEL_STUDIO_DEFAULT_URL
 from ..types import ExportDestination, ExportSource, TaskType
@@ -22,45 +24,29 @@ logger = get_logger(__name__)
 
 @app.command()
 def check(
-    api_key: Annotated[
-        Optional[str], typer.Option(envvar="LABEL_STUDIO_API_KEY")
-    ] = None,
-    project_id: Annotated[
-        Optional[int], typer.Option(help="Label Studio Project ID")
-    ] = None,
-    label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
     dataset_dir: Annotated[
-        Optional[Path],
+        Path,
         typer.Option(
             help="Path to the dataset directory", exists=True, file_okay=False
         ),
-    ] = None,
+    ],
     remove: Annotated[
         bool,
-        typer.Option(
-            help="Remove duplicate images from the dataset, only for local datasets"
-        ),
+        typer.Option(help="Remove duplicate images from the dataset"),
     ] = False,
 ):
-    """Check a dataset for duplicate images."""
-    from label_studio_sdk.client import LabelStudio
+    """Check a local dataset in Ultralytics format for duplicate images."""
 
-    from ..check import check_local_dataset, check_ls_dataset
+    from ..check import check_local_dataset
 
-    if project_id is not None:
-        ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
-        check_ls_dataset(ls, project_id)
-    elif dataset_dir is not None:
-        check_local_dataset(dataset_dir, remove=remove)
-    else:
-        raise typer.BadParameter("Either project ID or dataset directory is required")
+    check_local_dataset(dataset_dir, remove=remove)
 
 
 @app.command()
 def split_train_test(
     task_type: TaskType, dataset_dir: Path, output_dir: Path, train_ratio: float = 0.8
 ):
-    """Split a dataset into training and test sets.
+    """Split a local dataset into training and test sets.
 
     Only classification tasks are supported.
     """
@@ -317,52 +303,3 @@ def export(
                 is_openfoodfacts_dataset=is_openfoodfacts_dataset,
                 openfoodfacts_flavor=openfoodfacts_flavor,
             )
-
-
-@app.command()
-def show_hf_sample(
-    repo_id: Annotated[
-        str,
-        typer.Argument(
-            ...,
-            help="Hugging Face Datasets repo ID. The revision can be specified by "
-            "appending `@<revision>` to the repo ID.",
-        ),
-    ],
-    image_id: Annotated[
-        str,
-        typer.Argument(
-            ...,
-            help="ID of the image associated with the sample to display (field: `image_id`)",
-        ),
-    ],
-    output_image_path: Annotated[
-        Path | None,
-        typer.Option(help="Path to save the sample image (optional)", exists=False),
-    ] = None,
-):
-    """Display a sample from a Hugging Face Datasets repository by image ID."""
-    repo_id, revision = parse_hf_repo_id(repo_id)
-
-    from datasets import load_dataset
-
-    ds = load_dataset(repo_id, revision=revision)
-
-    sample = None
-    for split in ds.keys():
-        samples = ds[split].filter(lambda x: x == image_id, input_columns="image_id")
-        if len(samples) > 0:
-            sample = samples[0]
-            break
-    if sample is None:
-        typer.echo(f"Sample with image ID {image_id} not found in dataset {repo_id}")
-        raise typer.Exit(code=1)
-
-    else:
-        for key, value in sample.items():
-            typer.echo(f"{key}: {value}")
-
-        if output_image_path is not None:
-            image = sample["image"]
-            image.save(output_image_path)
-            typer.echo(f"Image saved to {output_image_path}")

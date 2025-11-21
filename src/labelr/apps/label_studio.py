@@ -6,12 +6,7 @@ from typing import Annotated, Optional
 
 import typer
 from openfoodfacts.utils import get_logger
-from PIL import Image
 
-from ..annotate import (
-    format_annotation_results_from_robotoff,
-    format_annotation_results_from_ultralytics,
-)
 from ..config import LABEL_STUDIO_DEFAULT_URL
 
 app = typer.Typer()
@@ -285,6 +280,12 @@ def add_prediction(
     import tqdm
     from label_studio_sdk.client import LabelStudio
     from openfoodfacts.utils import get_image_from_url, http_session
+    from PIL import Image
+
+    from ..annotate import (
+        format_annotation_results_from_robotoff,
+        format_annotation_results_from_ultralytics,
+    )
 
     label_mapping_dict = None
     if label_mapping:
@@ -443,6 +444,23 @@ def create_config_file(
     config = create_object_detection_label_config(labels)
     output_file.write_text(config)
     logger.info("Label config file created: %s", output_file)
+
+
+@app.command()
+def check_dataset(
+    project_id: Annotated[int, typer.Option(help="Label Studio Project ID")],
+    api_key: Annotated[
+        Optional[str], typer.Option(envvar="LABEL_STUDIO_API_KEY")
+    ] = None,
+    label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
+):
+    """Check a dataset for duplicate images on Label Studio."""
+    from label_studio_sdk.client import LabelStudio
+
+    from ..check import check_ls_dataset
+
+    ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
+    check_ls_dataset(ls, project_id)
 
 
 @app.command()
