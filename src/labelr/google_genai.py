@@ -1,14 +1,21 @@
 import asyncio
 import mimetypes
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlparse
 
 import aiofiles
+import jsonschema
 import orjson
 import typer
 from gcloud.aio.storage import Storage
+from openfoodfacts import Flavor
+from openfoodfacts.images import download_image, generate_image_url
 from tqdm.asyncio import tqdm
+
+from labelr.sample import LLMImageExtractionSample, SampleMeta
+from labelr.utils import download_image_from_gcs
 
 try:
     import google.genai  # noqa: F401
@@ -301,3 +308,108 @@ def launch_batch_job(
         config=CreateBatchJobConfig(dest=output_uri),
     )
     print(job)
+
+
+def generate_sample_iter(
+    prediction_path: Path,
+    json_schema: JSONType,
+    skip: int = 0,
+    limit: int | None = None,
+    is_openfoodfacts_dataset: bool = False,
+    openfoodfacts_flavor: Flavor = Flavor.off,
+    raise_on_invalid_sample: bool = False,
+) -> Iterator[LLMImageExtractionSample]:
+    """Generate training samples from a Gemini Batch Inference prediction
+    JSONL file.
+
+    Args:
+        prediction_path (Path): Path to the prediction JSONL file.
+        json_schema (JSONType): JSON schema to validate the predictions.
+        skip (int): Number of initial samples to skip.
+        limit (int | None): Maximum number of samples to generate.
+        is_openfoodfacts_dataset (bool): Whether the dataset is from Open Food
+            Facts.
+        openfoodfacts_flavor (Flavor): Flavor of the Open Food Facts dataset.
+    Yields:
+        Iterator[LLMImageExtractionSample]: Generated samples.
+    """
+    skipped = 0
+    invalid = 0
+    with prediction_path.open("r") as f_in:
+        for i, sample_str in enumerate(f_in):
+            if i < skip:
+                skipped += 1
+                continue
+            if limit is not None and i >= skip + limit:
+                break
+            sample = orjson.loads(sample_str)
+            try:
+                yield generate_sample_from_prediction(
+                    json_schema=json_schema,
+                    sample=sample,
+                    is_openfoodfacts_dataset=is_openfoodfacts_dataset,
+                    openfoodfacts_flavor=openfoodfacts_flavor,
+                )
+            except Exception as e:
+                if raise_on_invalid_sample:
+                    raise
+                else:
+                    typer.echo(
+                        f"Skipping invalid sample at line {i + 1} in {prediction_path}: {e}"
+                    )
+                    invalid += 1
+                    continue
+    if skipped > 0:
+        typer.echo(f"Skipped {skipped} samples.")
+    if invalid > 0:
+        typer.echo(f"Skipped {invalid} invalid samples.")
+
+
+def generate_sample_from_prediction(
+    json_schema: JSONType,
+    sample: JSONType,
+    is_openfoodfacts_dataset: bool = False,
+    openfoodfacts_flavor: Flavor = Flavor.off,
+) -> LLMImageExtractionSample:
+    """Generate a LLMImageExtractionSample from a prediction sample.
+    Args:
+        json_schema (JSONType): JSON schema to validate the predictions.
+        sample (JSONType): Prediction sample.
+        is_openfoodfacts_dataset (bool): Whether the dataset is from Open Food
+            Facts.
+        openfoodfacts_flavor (Flavor): Flavor of the Open Food Facts dataset.
+    Returns:
+        LLMImageExtractionSample: Generated sample.
+    """
+    image_id = sample["key"][len("key:") :]
+    response_str = sample["response"]["candidates"][0]["content"]["parts"][0]["text"]
+    image_uri = sample["request"]["contents"][0]["parts"][1]["file_data"]["file_uri"]
+    image = download_image_from_gcs(image_uri=image_uri)
+    response = orjson.loads(response_str)
+    jsonschema.validate(response, json_schema)
+
+    if is_openfoodfacts_dataset:
+        image_stem_parts = image_id.split("_")
+        barcode = image_stem_parts[0]
+        off_image_id = image_stem_parts[1]
+        image_id = f"{barcode}_{off_image_id}"
+        image_url = generate_image_url(
+            barcode, off_image_id, flavor=openfoodfacts_flavor
+        )
+    else:
+        image_id = image_id
+        barcode = ""
+        off_image_id = ""
+        image_url = ""
+
+    sample_meta = SampleMeta(
+        barcode=barcode,
+        off_image_id=off_image_id,
+        image_url=image_url,
+    )
+    return LLMImageExtractionSample(
+        image_id=image_id,
+        image=image,
+        output=orjson.dumps(response).decode("utf-8"),
+        meta=sample_meta,
+    )
