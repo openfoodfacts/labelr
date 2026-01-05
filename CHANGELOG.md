@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.9.0](https://github.com/openfoodfacts/labelr/compare/v0.8.0...v0.9.0) (2026-01-05)
+
+
+### Features
+
+* add commands to launch Gemini batch jobs ([e9bba33](https://github.com/openfoodfacts/labelr/commit/e9bba33e099a7614037ef7b9f0dd99f4f073c204))
+* add upload_training_dataset_from_predictions CLI command ([6f2d934](https://github.com/openfoodfacts/labelr/commit/6f2d934b5bf9da702bfb29ae1ea03861b883dfdb))
+
+
+### Technical
+
+* bump default python version to 3.11 ([cc871a4](https://github.com/openfoodfacts/labelr/commit/cc871a4e17c512390bfc931cbae2983f8cd39b18))
+* remove legacy file ([7e05a45](https://github.com/openfoodfacts/labelr/commit/7e05a453c08470499db237da93a09928b31fffc2))
+
 ## [0.8.0](https://github.com/openfoodfacts/labelr/compare/v0.7.0...v0.8.0) (2025-11-21)
 
 
