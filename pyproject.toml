@@ -12,7 +12,12 @@ dependencies = [
     "openfoodfacts>=2.9.0",
     "typer>=0.15.1",
     "google-cloud-batch==0.18.0",
-    "huggingface-hub"
+    "huggingface-hub",
+    "deepdiff>=8.6.1",
+    "rapidfuzz>=3.14.3",
+    "aiohttp",
+    "aiofiles",
+    "orjson",
 ]
 
 [project.scripts]
@@ -25,6 +30,7 @@ ultralytics = [
 fiftyone = [
     "fiftyone~=1.10.0"
 ]
+google = ["google-genai >= 1.56.0", "gcloud-aio-storage", "google-cloud-storage"]
 
 [tool.uv]
 package = true

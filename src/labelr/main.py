@@ -5,6 +5,7 @@ from openfoodfacts.utils import get_logger
 
 from labelr.apps import datasets as dataset_app
 from labelr.apps import evaluate as evaluate_app
+from labelr.apps import google_batch as google_batch_app
 from labelr.apps import hugging_face as hf_app
 from labelr.apps import label_studio as ls_app
 from labelr.apps import train as train_app
@@ -83,6 +84,11 @@ app.add_typer(
     evaluate_app.app,
     name="evaluate",
     help="Visualize and evaluate trained models.",
+)
+app.add_typer(
+    google_batch_app.app,
+    name="google-batch",
+    help="Generate datasets and launch batch jobs on Google Gemini.",
 )
 
 if __name__ == "__main__":
