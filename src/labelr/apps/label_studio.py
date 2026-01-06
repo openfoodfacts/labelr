@@ -398,7 +398,7 @@ def create_dataset_file(
     from openfoodfacts.images import extract_barcode_from_url, extract_source_from_url
     from openfoodfacts.utils import get_image_from_url
 
-    from labelr.sample import format_object_detection_sample_to_ls
+    from labelr.sample.object_detection import format_object_detection_sample_to_ls
 
     logger.info("Loading dataset: %s", input_file)
 

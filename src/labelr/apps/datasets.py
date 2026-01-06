@@ -103,7 +103,9 @@ def convert_object_detection_dataset(
     Studio format, and save it to a JSON file."""
     from datasets import load_dataset
 
-    from labelr.sample import format_object_detection_sample_from_hf_to_ls
+    from labelr.sample.object_detection import (
+        format_object_detection_sample_from_hf_to_ls,
+    )
 
     logger.info("Loading dataset: %s", repo_id)
     ds = load_dataset(repo_id)

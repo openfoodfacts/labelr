@@ -14,7 +14,8 @@ from openfoodfacts import Flavor
 from openfoodfacts.images import generate_image_url
 from tqdm.asyncio import tqdm
 
-from labelr.sample import LLMImageExtractionSample, SampleMeta
+from labelr.sample.common import SampleMeta
+from labelr.sample.llm import LLMImageExtractionSample
 from labelr.utils import download_image_from_gcs
 
 try:

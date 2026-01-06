@@ -8,8 +8,7 @@ import PIL
 from openfoodfacts import Flavor
 from openfoodfacts.barcode import normalize_barcode
 from openfoodfacts.images import download_image, generate_image_url
-from PIL import Image, ImageOps
-from pydantic import BaseModel, Field
+from PIL import ImageOps
 
 logger = logging.getLogger(__name__)
 
@@ -231,34 +230,6 @@ def format_object_detection_sample_to_hf(
     }
 
 
-class SampleMeta(BaseModel):
-    barcode: str | None = Field(
-        ..., description="The barcode of the product, if applicable"
-    )
-    off_image_id: str | None = Field(
-        ...,
-        description="The Open Food Facts image ID associated with the image, if applicable",
-    )
-    image_url: str | None = Field(
-        ..., description="The URL of the image, if applicable"
-    )
-
-
-class LLMImageExtractionSample(BaseModel):
-    class Config:
-        # required to allow PIL Image type
-        arbitrary_types_allowed = True
-
-    image_id: str = Field(
-        ...,
-        description="unique ID for the image. For Open Food Facts images, it follows the "
-        "format `barcode:imgid`",
-    )
-    image: Image.Image = Field(..., description="Image to extract information from")
-    output: str = Field(..., description="Expected response of the LLM")
-    meta: SampleMeta = Field(..., description="Metadata associated with the sample")
-
-
 # The HuggingFace Dataset features
 HF_DS_OBJECT_DETECTION_FEATURES = datasets.Features(
     {
@@ -275,36 +246,6 @@ HF_DS_OBJECT_DETECTION_FEATURES = datasets.Features(
             "bbox": datasets.Sequence(datasets.Sequence(datasets.Value("float32"))),
             "category_id": datasets.Sequence(datasets.Value("int64")),
             "category_name": datasets.Sequence(datasets.Value("string")),
-        },
-    }
-)
-
-
-HF_DS_CLASSIFICATION_FEATURES = datasets.Features(
-    {
-        "image_id": datasets.Value("string"),
-        "image": datasets.features.Image(),
-        "width": datasets.Value("int64"),
-        "height": datasets.Value("int64"),
-        "meta": {
-            "barcode": datasets.Value("string"),
-            "off_image_id": datasets.Value("string"),
-            "image_url": datasets.Value("string"),
-        },
-        "category_id": datasets.Value("int64"),
-        "category_name": datasets.Value("string"),
-    }
-)
-
-HF_DS_LLM_IMAGE_EXTRACTION_FEATURES = datasets.Features(
-    {
-        "image_id": datasets.Value("string"),
-        "image": datasets.features.Image(),
-        "output": datasets.features.Value("string"),
-        "meta": {
-            "barcode": datasets.Value("string"),
-            "off_image_id": datasets.Value("string"),
-            "image_url": datasets.Value("string"),
         },
     }
 )

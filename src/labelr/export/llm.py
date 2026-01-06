@@ -10,7 +10,10 @@ import tqdm
 from PIL import ImageOps
 
 from labelr.export.common import _pickle_sample_generator
-from labelr.sample import HF_DS_LLM_IMAGE_EXTRACTION_FEATURES, LLMImageExtractionSample
+from labelr.sample.llm import (
+    HF_DS_LLM_IMAGE_EXTRACTION_FEATURES,
+    LLMImageExtractionSample,
+)
 from labelr.utils import PathWithContext
 
 logger = logging.getLogger(__name__)

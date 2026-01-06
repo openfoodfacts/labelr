@@ -10,7 +10,7 @@ from label_studio_sdk.client import LabelStudio
 from openfoodfacts.images import download_image
 
 from labelr.export.common import _pickle_sample_generator
-from labelr.sample import (
+from labelr.sample.object_detection import (
     HF_DS_OBJECT_DETECTION_FEATURES,
     format_object_detection_sample_to_hf,
 )
