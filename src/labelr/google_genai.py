@@ -335,6 +335,7 @@ def generate_sample_iter(
     """
     skipped = 0
     invalid = 0
+    storage_client = storage.Client()
     with prediction_path.open("r") as f_in:
         for i, sample_str in enumerate(f_in):
             if i < skip:
@@ -349,6 +350,7 @@ def generate_sample_iter(
                     sample=sample,
                     is_openfoodfacts_dataset=is_openfoodfacts_dataset,
                     openfoodfacts_flavor=openfoodfacts_flavor,
+                    storage_client=storage_client,
                 )
             except Exception as e:
                 if raise_on_invalid_sample:
@@ -370,6 +372,7 @@ def generate_sample_from_prediction(
     sample: JSONType,
     is_openfoodfacts_dataset: bool = False,
     openfoodfacts_flavor: Flavor = Flavor.off,
+    storage_client: storage.Client | None = None,
 ) -> LLMImageExtractionSample:
     """Generate a LLMImageExtractionSample from a prediction sample.
     Args:
@@ -378,13 +381,15 @@ def generate_sample_from_prediction(
         is_openfoodfacts_dataset (bool): Whether the dataset is from Open Food
             Facts.
         openfoodfacts_flavor (Flavor): Flavor of the Open Food Facts dataset.
+        storage_client (storage.Client | None): Optional Google Cloud Storage
+            client. If not provided, a new client will be created.
     Returns:
         LLMImageExtractionSample: Generated sample.
     """
     image_id = sample["key"][len("key:") :]
     response_str = sample["response"]["candidates"][0]["content"]["parts"][0]["text"]
     image_uri = sample["request"]["contents"][0]["parts"][1]["file_data"]["file_uri"]
-    image = download_image_from_gcs(image_uri=image_uri)
+    image = download_image_from_gcs(image_uri=image_uri, client=storage_client)
     response = orjson.loads(response_str)
     jsonschema.validate(response, json_schema)
 

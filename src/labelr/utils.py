@@ -20,12 +20,23 @@ def parse_hf_repo_id(hf_repo_id: str) -> tuple[str, str]:
     return hf_repo_id, revision
 
 
-def download_image_from_gcs(image_uri: str) -> Image.Image:
+def download_image_from_gcs(
+    image_uri: str, client: storage.Client | None = None
+) -> Image.Image:
     """Download an image from a Google Cloud Storage URI and return it as a
-    PIL Image."""
-    storage_client = storage.Client()
+    PIL Image.
+
+    Args:
+        image_uri (str): The GCS URI of the image
+            (e.g., gs://bucket_name/path/to/image.jpg).
+        client (storage.Client | None): An optional Google Cloud Storage
+            client. If not provided, a new client will be created.
+    """
+    if client is None:
+        client = storage.Client()
+
     bucket_name, blob_name = image_uri.replace("gs://", "").split("/", 1)
-    bucket = storage_client.bucket(bucket_name)
+    bucket = client.bucket(bucket_name)
     blob = bucket.blob(blob_name)
     image_data = blob.download_as_bytes()
     return Image.open(io.BytesIO(image_data))
