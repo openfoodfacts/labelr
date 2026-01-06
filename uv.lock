@@ -2006,7 +2006,10 @@ dependencies = [
     { name = "aiohttp" },
     { name = "datasets" },
     { name = "deepdiff" },
+    { name = "gcloud-aio-storage" },
     { name = "google-cloud-batch" },
+    { name = "google-cloud-storage" },
+    { name = "google-genai" },
     { name = "huggingface-hub" },
     { name = "imagehash" },
     { name = "label-studio-sdk" },
@@ -2020,11 +2023,6 @@ dependencies = [
 [package.optional-dependencies]
 fiftyone = [
     { name = "fiftyone" },
-]
-google = [
-    { name = "gcloud-aio-storage" },
-    { name = "google-cloud-storage" },
-    { name = "google-genai" },
 ]
 ultralytics = [
     { name = "ultralytics" },
@@ -2044,10 +2042,10 @@ requires-dist = [
     { name = "datasets", specifier = ">=3.2.0" },
     { name = "deepdiff", specifier = ">=8.6.1" },
     { name = "fiftyone", marker = "extra == 'fiftyone'", specifier = "~=1.10.0" },
-    { name = "gcloud-aio-storage", marker = "extra == 'google'" },
+    { name = "gcloud-aio-storage" },
     { name = "google-cloud-batch", specifier = "==0.18.0" },
-    { name = "google-cloud-storage", marker = "extra == 'google'" },
-    { name = "google-genai", marker = "extra == 'google'", specifier = ">=1.56.0" },
+    { name = "google-cloud-storage" },
+    { name = "google-genai", specifier = ">=1.56.0" },
     { name = "huggingface-hub" },
     { name = "imagehash", specifier = ">=4.3.1" },
     { name = "label-studio-sdk", specifier = ">=1.0.8" },
@@ -2058,7 +2056,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.15.1" },
     { name = "ultralytics", marker = "extra == 'ultralytics'", specifier = "==8.3.223" },
 ]
-provides-extras = ["ultralytics", "fiftyone", "google"]
+provides-extras = ["ultralytics", "fiftyone"]
 
 [package.metadata.requires-dev]
 dev = [

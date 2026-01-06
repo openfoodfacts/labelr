@@ -18,6 +18,9 @@ dependencies = [
     "aiohttp",
     "aiofiles",
     "orjson",
+    "google-cloud-storage",
+    "gcloud-aio-storage",
+    "google-genai >= 1.56.0",
 ]
 
 [project.scripts]
@@ -30,7 +33,6 @@ ultralytics = [
 fiftyone = [
     "fiftyone~=1.10.0"
 ]
-google = ["google-genai >= 1.56.0", "gcloud-aio-storage", "google-cloud-storage"]
 
 [tool.uv]
 package = true

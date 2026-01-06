@@ -3,7 +3,6 @@ from pathlib import Path
 
 from openfoodfacts.types import Flavor
 
-from labelr.export.classification import export_from_ultralytics_to_hf_classification
 from labelr.types import TaskType
 
 
@@ -23,6 +22,10 @@ def export_from_ultralytics_to_hf(
     is_openfoodfacts_dataset: bool = False,
     openfoodfacts_flavor: Flavor = Flavor.off,
 ) -> None:
+    from labelr.export.classification import (
+        export_from_ultralytics_to_hf_classification,
+    )
+
     if task_type != TaskType.classification:
         raise NotImplementedError(
             "Only classification task is currently supported for Ultralytics to HF export"
