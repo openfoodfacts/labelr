@@ -307,3 +307,39 @@ def export(
                 is_openfoodfacts_dataset=is_openfoodfacts_dataset,
                 openfoodfacts_flavor=openfoodfacts_flavor,
             )
+
+
+@app.command()
+def export_llm_ds(
+    dataset_path: Annotated[
+        Path, typer.Option(..., help="Path to the JSONL dataset file")
+    ],
+    repo_id: Annotated[
+        str, typer.Option(..., help="Hugging Face Datasets repository ID to export to")
+    ],
+    split: Annotated[str, typer.Option(..., help="Dataset split to export")],
+    revision: Annotated[
+        str,
+        typer.Option(
+            help="Revision (branch, tag or commit) for the Hugging Face Datasets repository."
+        ),
+    ] = "main",
+    tmp_dir: Annotated[
+        Path | None,
+        typer.Option(
+            help="Path to a temporary directory to use for image processing",
+        ),
+    ] = None,
+):
+    """Export LLM image extraction dataset with images only to Hugging Face
+    Datasets.
+    """
+    from labelr.export.llm import export_to_hf_llm_image_extraction
+    from labelr.sample.llm import load_llm_image_extraction_dataset_from_jsonl
+
+    sample_iter = load_llm_image_extraction_dataset_from_jsonl(
+        dataset_path=dataset_path
+    )
+    export_to_hf_llm_image_extraction(
+        sample_iter, split=split, repo_id=repo_id, revision=revision, tmp_dir=tmp_dir
+    )

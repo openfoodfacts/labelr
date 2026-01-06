@@ -2,12 +2,13 @@ import functools
 import logging
 import pickle
 import tempfile
+import typing
 from collections.abc import Iterator
 from pathlib import Path
 
 import datasets
 import tqdm
-from PIL import ImageOps
+from PIL import Image, ImageOps
 
 from labelr.export.common import _pickle_sample_generator
 from labelr.sample.llm import (
@@ -59,17 +60,19 @@ def export_to_hf_llm_image_extraction(
         for sample in tqdm.tqdm(sample_iter, desc="samples"):
             image = sample.image
             # Rotate image according to exif orientation using Pillow
-            image = ImageOps.exif_transpose(image)
+            image = typing.cast(Image.Image, ImageOps.exif_transpose(image))
             image_id = sample.image_id
-            sample = {
+            json_sample = {
                 "image_id": image_id,
                 "image": image,
-                "meta": sample.meta.model_dump(),
+                "meta": {
+                    k: v for k, v in sample.meta.model_dump().items() if v is not None
+                },
                 "output": sample.output,
             }
             # Save output as pickle
             with open(tmp_dir / f"{split}_{image_id}.pkl", "wb") as f:
-                pickle.dump(sample, f)
+                pickle.dump(json_sample, f)
 
         hf_ds = datasets.Dataset.from_generator(
             functools.partial(_pickle_sample_generator, tmp_dir),

@@ -2,6 +2,8 @@ import io
 from pathlib import Path
 
 from google.cloud import storage
+from openfoodfacts.images import download_image as _download_image
+from openfoodfacts.utils import ImageDownloadItem
 from PIL import Image
 
 
@@ -20,9 +22,38 @@ def parse_hf_repo_id(hf_repo_id: str) -> tuple[str, str]:
     return hf_repo_id, revision
 
 
+def download_image(
+    image: str | tuple[str, str],
+    *,
+    error_raise: bool = True,
+    return_struct: bool = False,
+    **kwargs,
+) -> Image.Image | ImageDownloadItem | None:
+    """Download an image from a URL or GCS URI and return it as a PIL Image.
+    Args:
+        image (str | tuple[str, str]): The URL or GCS URI of the image.
+        error_raise (bool): Whether to raise an error if the image cannot be
+            downloaded.
+        return_struct (bool): Whether to return an ImageDownloadItem struct
+            instead of a PIL Image.
+        **kwargs: Additional arguments to pass to the download function.
+    Returns:
+        Image.Image | ImageDownloadItem: The downloaded image as a PIL Image
+            or an ImageDownloadItem struct.
+    """
+    if isinstance(image, str) and image.startswith("gs://"):
+        return download_image_from_gcs(image, return_struct=return_struct, **kwargs)
+    return _download_image(
+        image,
+        error_raise=error_raise,
+        return_struct=return_struct,
+        **kwargs,
+    )
+
+
 def download_image_from_gcs(
-    image_uri: str, client: storage.Client | None = None
-) -> Image.Image:
+    image_uri: str, client: storage.Client | None = None, return_struct: bool = False
+) -> Image.Image | ImageDownloadItem:
     """Download an image from a Google Cloud Storage URI and return it as a
     PIL Image.
 
@@ -39,7 +70,15 @@ def download_image_from_gcs(
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(blob_name)
     image_data = blob.download_as_bytes()
-    return Image.open(io.BytesIO(image_data))
+    pil_image = Image.open(io.BytesIO(image_data))
+
+    if return_struct:
+        return ImageDownloadItem(
+            url=image_uri,
+            image=pil_image,
+            error=None,
+        )
+    return pil_image
 
 
 class PathWithContext:
