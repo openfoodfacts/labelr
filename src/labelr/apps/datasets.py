@@ -12,7 +12,11 @@ import typer
 from openfoodfacts import Flavor
 from openfoodfacts.utils import get_logger
 
-from labelr.export import export_from_ultralytics_to_hf
+from labelr.export.common import export_from_ultralytics_to_hf
+from labelr.export.object_detection import (
+    export_from_ls_to_hf_object_detection,
+    export_from_ls_to_ultralytics_object_detection,
+)
 
 from ..config import LABEL_STUDIO_DEFAULT_URL
 from ..types import ExportDestination, ExportSource, TaskType
@@ -207,10 +211,8 @@ def export(
     local files (ultralytics format)."""
     from label_studio_sdk.client import LabelStudio
 
-    from labelr.export import (
+    from labelr.export.object_detection import (
         export_from_hf_to_ultralytics_object_detection,
-        export_from_ls_to_hf_object_detection,
-        export_from_ls_to_ultralytics_object_detection,
     )
 
     if (to == ExportDestination.hf or from_ == ExportSource.hf) and repo_id is None:

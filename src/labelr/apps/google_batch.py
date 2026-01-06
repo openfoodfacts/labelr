@@ -247,7 +247,7 @@ def upload_training_dataset_from_predictions(
     import orjson
     from huggingface_hub import HfApi
 
-    from labelr.export import export_to_hf_llm_image_extraction
+    from labelr.export.llm import export_to_hf_llm_image_extraction
     from labelr.google_genai import generate_sample_iter
 
     instructions = instructions_path.read_text()

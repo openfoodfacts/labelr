@@ -17,8 +17,8 @@ from huggingface_hub import HfApi, ModelCard, ModelCardData
 from PIL import Image
 
 from labelr.dataset_features import OBJECT_DETECTION_DS_PREDICTION_FEATURES
-from labelr.export import (
-    _pickle_sample_generator,
+from labelr.export.common import _pickle_sample_generator
+from labelr.export.object_detection import (
     export_from_hf_to_ultralytics_object_detection,
 )
 from labelr.utils import parse_hf_repo_id

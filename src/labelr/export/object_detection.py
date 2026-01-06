@@ -1,36 +1,21 @@
 import functools
 import logging
 import pickle
-import random
 import tempfile
-from collections.abc import Iterator
 from pathlib import Path
 
 import datasets
 import tqdm
 from label_studio_sdk.client import LabelStudio
-from openfoodfacts.images import download_image, generate_image_url
-from openfoodfacts.types import Flavor
-from PIL import Image, ImageOps
+from openfoodfacts.images import download_image
 
+from labelr.export.common import _pickle_sample_generator
 from labelr.sample import (
-    HF_DS_CLASSIFICATION_FEATURES,
-    HF_DS_LLM_IMAGE_EXTRACTION_FEATURES,
     HF_DS_OBJECT_DETECTION_FEATURES,
-    LLMImageExtractionSample,
     format_object_detection_sample_to_hf,
 )
-from labelr.types import TaskType
-from labelr.utils import PathWithContext
 
 logger = logging.getLogger(__name__)
-
-
-def _pickle_sample_generator(dir: Path):
-    """Generator that yields samples from pickles in a directory."""
-    for pkl in dir.glob("*.pkl"):
-        with open(pkl, "rb") as f:
-            yield pickle.load(f)
 
 
 def export_from_ls_to_hf_object_detection(
@@ -335,186 +320,3 @@ def export_from_hf_to_ultralytics_object_detection(
         f.write("names:\n")
         for i, category_name in enumerate(category_names):
             f.write(f"  {i}: {category_name}\n")
-
-
-def export_from_ultralytics_to_hf(
-    task_type: TaskType,
-    dataset_dir: Path,
-    repo_id: str,
-    label_names: list[str],
-    merge_labels: bool = False,
-    is_openfoodfacts_dataset: bool = False,
-    openfoodfacts_flavor: Flavor = Flavor.off,
-) -> None:
-    if task_type != TaskType.classification:
-        raise NotImplementedError(
-            "Only classification task is currently supported for Ultralytics to HF export"
-        )
-
-    if task_type == TaskType.classification:
-        export_from_ultralytics_to_hf_classification(
-            dataset_dir=dataset_dir,
-            repo_id=repo_id,
-            label_names=label_names,
-            merge_labels=merge_labels,
-            is_openfoodfacts_dataset=is_openfoodfacts_dataset,
-            openfoodfacts_flavor=openfoodfacts_flavor,
-        )
-
-
-def export_from_ultralytics_to_hf_classification(
-    dataset_dir: Path,
-    repo_id: str,
-    label_names: list[str],
-    merge_labels: bool = False,
-    is_openfoodfacts_dataset: bool = False,
-    openfoodfacts_flavor: Flavor = Flavor.off,
-) -> None:
-    """Export an Ultralytics classification dataset to a Hugging Face dataset.
-
-    The Ultralytics dataset directory should contain 'train', 'val' and/or
-    'test' subdirectories, each containing subdirectories for each label.
-
-    Args:
-        dataset_dir (Path): Path to the Ultralytics dataset directory.
-        repo_id (str): Hugging Face repository ID to push the dataset to.
-        label_names (list[str]): List of label names.
-        merge_labels (bool): Whether to merge all labels into a single label
-            named 'object'.
-        is_openfoodfacts_dataset (bool): Whether the dataset is from
-            Open Food Facts. If True, the `off_image_id` and `image_url` will
-            be generated automatically. `off_image_id` is extracted from the
-            image filename.
-        openfoodfacts_flavor (Flavor): Flavor of Open Food Facts dataset. This
-            is ignored if `is_openfoodfacts_dataset` is False.
-    """
-    logger.info("Repo ID: %s, dataset_dir: %s", repo_id, dataset_dir)
-
-    if not any((dataset_dir / split).is_dir() for split in ["train", "val", "test"]):
-        raise ValueError(
-            f"Dataset directory {dataset_dir} does not contain 'train', 'val' or 'test' subdirectories"
-        )
-
-    # Save output as pickle
-    for split in ["train", "val", "test"]:
-        split_dir = dataset_dir / split
-
-        if not split_dir.is_dir():
-            logger.info("Skipping missing split directory: %s", split_dir)
-            continue
-
-        with tempfile.TemporaryDirectory() as tmp_dir_str:
-            tmp_dir = Path(tmp_dir_str)
-            for label_dir in (d for d in split_dir.iterdir() if d.is_dir()):
-                label_name = label_dir.name
-                if merge_labels:
-                    label_name = "object"
-                if label_name not in label_names:
-                    raise ValueError(
-                        "Label name %s not in provided label names (label names: %s)"
-                        % (label_name, label_names),
-                    )
-                label_id = label_names.index(label_name)
-
-                for image_path in label_dir.glob("*"):
-                    if is_openfoodfacts_dataset:
-                        image_stem_parts = image_path.stem.split("_")
-                        barcode = image_stem_parts[0]
-                        off_image_id = image_stem_parts[1]
-                        image_id = f"{barcode}_{off_image_id}"
-                        image_url = generate_image_url(
-                            barcode, off_image_id, flavor=openfoodfacts_flavor
-                        )
-                    else:
-                        image_id = image_path.stem
-                        barcode = ""
-                        off_image_id = ""
-                        image_url = ""
-                    image = Image.open(image_path)
-                    image.load()
-
-                    if image.mode != "RGB":
-                        image = image.convert("RGB")
-
-                    # Rotate image according to exif orientation using Pillow
-                    ImageOps.exif_transpose(image, in_place=True)
-                    sample = {
-                        "image_id": image_id,
-                        "image": image,
-                        "width": image.width,
-                        "height": image.height,
-                        "meta": {
-                            "barcode": barcode,
-                            "off_image_id": off_image_id,
-                            "image_url": image_url,
-                        },
-                        "category_id": label_id,
-                        "category_name": label_name,
-                    }
-                    with open(tmp_dir / f"{split}_{image_id}.pkl", "wb") as f:
-                        pickle.dump(sample, f)
-
-            hf_ds = datasets.Dataset.from_generator(
-                functools.partial(_pickle_sample_generator, tmp_dir),
-                features=HF_DS_CLASSIFICATION_FEATURES,
-            )
-            hf_ds.push_to_hub(repo_id, split=split)
-
-
-def export_to_hf_llm_image_extraction(
-    sample_iter: Iterator[LLMImageExtractionSample],
-    split: str,
-    repo_id: str,
-    revision: str = "main",
-    tmp_dir: Path | None = None,
-) -> None:
-    """Export LLM image extraction samples to a Hugging Face dataset.
-
-    Args:
-        sample_iter (Iterator[LLMImageExtractionSample]): Iterator of samples
-            to export.
-        split (str): Name of the dataset split (e.g., 'train', 'val').
-        repo_id (str): Hugging Face repository ID to push the dataset to.
-        revision (str): Revision (branch, tag or commit) to use for the
-            Hugging Face Datasets repository.
-        tmp_dir (Path | None): Temporary directory to use for intermediate
-            files. If None, a temporary directory will be created
-            automatically.
-    """
-    logger.info(
-        "Repo ID: %s, revision: %s, split: %s, tmp_dir: %s",
-        repo_id,
-        revision,
-        split,
-        tmp_dir,
-    )
-
-    tmp_dir_with_context: PathWithContext | tempfile.TemporaryDirectory
-    if tmp_dir:
-        tmp_dir.mkdir(parents=True, exist_ok=True)
-        tmp_dir_with_context = PathWithContext(tmp_dir)
-    else:
-        tmp_dir_with_context = tempfile.TemporaryDirectory()
-
-    with tmp_dir_with_context as tmp_dir_str:
-        tmp_dir = Path(tmp_dir_str)
-        for sample in tqdm.tqdm(sample_iter, desc="samples"):
-            image = sample.image
-            # Rotate image according to exif orientation using Pillow
-            image = ImageOps.exif_transpose(image)
-            image_id = sample.image_id
-            sample = {
-                "image_id": image_id,
-                "image": image,
-                "meta": sample.meta.model_dump(),
-                "output": sample.output,
-            }
-            # Save output as pickle
-            with open(tmp_dir / f"{split}_{image_id}.pkl", "wb") as f:
-                pickle.dump(sample, f)
-
-        hf_ds = datasets.Dataset.from_generator(
-            functools.partial(_pickle_sample_generator, tmp_dir),
-            features=HF_DS_LLM_IMAGE_EXTRACTION_FEATURES,
-        )
-        hf_ds.push_to_hub(repo_id, split=split, revision=revision)
