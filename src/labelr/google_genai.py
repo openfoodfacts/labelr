@@ -11,7 +11,7 @@ import orjson
 import typer
 from gcloud.aio.storage import Storage
 from openfoodfacts import Flavor
-from openfoodfacts.images import download_image, generate_image_url
+from openfoodfacts.images import generate_image_url
 from tqdm.asyncio import tqdm
 
 from labelr.sample import LLMImageExtractionSample, SampleMeta
