@@ -6,12 +6,12 @@ import orjson
 import tqdm
 import typer
 
+from unsloth import FastVisionModel
+from unsloth.trainer import UnslothVisionDataCollator
 # trl should be imported after unsloth
 from datasets import Dataset, load_dataset
 from huggingface_hub import hf_hub_download
 from trl import SFTConfig, SFTTrainer
-from unsloth import FastVisionModel
-from unsloth.trainer import UnslothVisionDataCollator
 
 JSONType = dict[str, Any]
 
@@ -156,13 +156,13 @@ def main(
         # target_modules = "all-linear", # Optional now! Can specify a list if
         # needed
     )
-    dataset = load_dataset(
+    ds = load_dataset(
         ds_repo_id,
         columns=["image", "output"],
     )
 
-    train_ds = dataset["train"]
-    val_ds = dataset["validation"]
+    train_ds = ds["train"]
+    val_ds = ds["val"]
 
     if shuffle_dataset:
         train_ds = train_ds.shuffle()
@@ -193,7 +193,7 @@ def main(
             )
         return {"messages": conversation}
 
-    converted_train_dataset = dataset.map(
+    converted_train_dataset = train_ds.map(
         convert_to_conversation, remove_columns=["image", "output"]
     )
 
