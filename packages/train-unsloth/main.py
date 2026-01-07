@@ -42,7 +42,7 @@ def run_on_validation_set(val_ds: Dataset, model: FastVisionModel, tokenizer: An
             add_special_tokens=False,
             return_tensors="pt",
         ).to(model.device)
-        _ = model.generate(inputs, max_new_tokens=4096, use_cache=True)
+        _ = model.generate(**inputs, max_new_tokens=4096, use_cache=True)
 
 
 @app.command()
@@ -138,6 +138,14 @@ def main(
         int,
         typer.Option(..., help="The number of logging steps"),
     ] = 10,
+    push_to_hub: Annotated[
+        bool,
+        typer.Option(..., help="Whether to push the trained model to the HF Hub"),
+    ] = True,
+    train: Annotated[
+        bool,
+        typer.Option(..., help="Whether to run training"),
+    ] = True,
 ):
     model, tokenizer = FastVisionModel.from_pretrained(
         base_model,
@@ -238,9 +246,14 @@ def main(
             max_length=None,
         ),
     )
-    trainer.train()
-    model.push_to_hub(output_repo_id, token=hf_token)
-    tokenizer.push_to_hub(output_repo_id, token=hf_token)
+
+    if train:
+        trainer.train()
+
+    if push_to_hub:
+        model.push_to_hub(output_repo_id, token=hf_token)
+        tokenizer.push_to_hub(output_repo_id, token=hf_token)
+
     converted_val_dataset = val_ds.map(
         functools.partial(convert_to_conversation, train=False),
         remove_columns=["output"],
