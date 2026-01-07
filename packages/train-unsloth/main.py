@@ -32,9 +32,9 @@ def run_on_validation_set(val_ds: Dataset, model: FastVisionModel, processor: An
     FastVisionModel.for_inference(model)  # Enable for inference!
 
     print("Running on validation set to verify model...")
-    for messages in tqdm.tqdm(val_ds, desc="validation samples"):
+    for samples in tqdm.tqdm(val_ds, desc="validation samples"):
         model_inputs = processor.apply_chat_template(
-            messages,
+            samples["messages"],
             tokenize=True,
             add_generation_prompt=True,
             return_tensors="pt",
@@ -224,7 +224,7 @@ def main(
             remove_unused_columns=False,
             dataset_text_field="",
             dataset_kwargs={"skip_prepare_dataset": True},
-            max_length=8192,
+            max_length=None,
         ),
     )
     trainer.train()
