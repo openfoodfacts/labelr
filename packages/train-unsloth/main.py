@@ -28,18 +28,21 @@ def get_full_instructions(instructions: str, json_schema: JSONType):
     return f"{instructions}\n\nResponse must be formatted as JSON, and follow this JSON schema:\n{json_schema_str}"
 
 
-def run_on_validation_set(val_ds: Dataset, model: FastVisionModel, processor: Any):
+def run_on_validation_set(val_ds: Dataset, model: FastVisionModel, tokenizer: Any):
     FastVisionModel.for_inference(model)  # Enable for inference!
 
     print("Running on validation set to verify model...")
-    for samples in tqdm.tqdm(val_ds, desc="validation samples"):
-        model_inputs = processor.apply_chat_template(
-            samples["messages"],
-            tokenize=True,
-            add_generation_prompt=True,
+    for sample in tqdm.tqdm(val_ds, desc="validation samples"):
+        input_text = tokenizer.apply_chat_template(
+            sample["messages"], add_generation_prompt=True
+        )
+        inputs = tokenizer(
+            sample["image"],
+            input_text,
+            add_special_tokens=False,
             return_tensors="pt",
         ).to(model.device)
-        _ = model.generate(model_inputs, max_new_tokens=4096, use_cache=True)
+        _ = model.generate(inputs, max_new_tokens=4096, use_cache=True)
 
 
 @app.command()
@@ -178,22 +181,30 @@ def main(
     full_instructions = get_full_instructions(instructions, json_schema)
 
     def convert_to_conversation(sample, train: bool = True):
-        conversation = [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": full_instructions},
-                    {"type": "image", "image": sample["image"]},
-                ],
-            },
-        ]
         if train:
-            conversation.append(
+            conversation = [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": full_instructions},
+                        {"type": "image", "image": sample["image"]},
+                    ],
+                },
                 {
                     "role": "assistant",
                     "content": [{"type": "text", "text": sample["output"]}],
                 },
-            )
+            ]
+        else:
+            conversation = [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": full_instructions},
+                        {"type": "image"},
+                    ],
+                }
+            ]
         return {"messages": conversation}
 
     converted_train_dataset = train_ds.map(
@@ -232,9 +243,9 @@ def main(
     tokenizer.push_to_hub(output_repo_id, token=hf_token)
     converted_val_dataset = val_ds.map(
         functools.partial(convert_to_conversation, train=False),
-        remove_columns=["image", "output"],
+        remove_columns=["output"],
     )
-    run_on_validation_set(converted_val_dataset, model, trainer.data_collator.processor)
+    run_on_validation_set(converted_val_dataset, model, tokenizer)
 
 
 if __name__ == "__main__":
