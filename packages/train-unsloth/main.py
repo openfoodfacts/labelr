@@ -15,6 +15,8 @@ from trl import SFTConfig, SFTTrainer
 
 JSONType = dict[str, Any]
 
+app = typer.Typer(pretty_exceptions_enable=False)
+
 
 def get_config(ds_repo_id: str):
     config_path = hf_hub_download(ds_repo_id, "config.json", repo_type="dataset")
@@ -40,6 +42,7 @@ def run_on_validation_set(val_ds: Dataset, model: FastVisionModel, processor: An
         _ = model.generate(model_inputs, max_new_tokens=4096, use_cache=True)
 
 
+@app.command()
 def main(
     ds_repo_id: Annotated[str, typer.Option(..., help="The HF dataset repo ID")],
     output_repo_id: Annotated[
@@ -202,7 +205,7 @@ def main(
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
-        data_collator=UnslothVisionDataCollator(model, tokenizer),
+        data_collator=UnslothVisionDataCollator(model, tokenizer, max_seq_length=8192),
         train_dataset=converted_train_dataset,
         args=SFTConfig(
             per_device_train_batch_size=per_device_train_batch_size,
@@ -221,7 +224,7 @@ def main(
             remove_unused_columns=False,
             dataset_text_field="",
             dataset_kwargs={"skip_prepare_dataset": True},
-            max_length=None,
+            max_length=8192,
         ),
     )
     trainer.train()
@@ -235,4 +238,4 @@ def main(
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    app()
