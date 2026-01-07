@@ -1,11 +1,13 @@
+import functools
 from pathlib import Path
 from typing import Annotated, Any
 
-# trl should be imported after unsloth
 import orjson
-import torch
+import tqdm
 import typer
-from datasets import load_dataset
+
+# trl should be imported after unsloth
+from datasets import Dataset, load_dataset
 from huggingface_hub import hf_hub_download
 from trl import SFTConfig, SFTTrainer
 from unsloth import FastVisionModel
@@ -22,6 +24,20 @@ def get_config(ds_repo_id: str):
 def get_full_instructions(instructions: str, json_schema: JSONType):
     json_schema_str = orjson.dumps(json_schema).decode("utf-8")
     return f"{instructions}\n\nResponse must be formatted as JSON, and follow this JSON schema:\n{json_schema_str}"
+
+
+def run_on_validation_set(val_ds: Dataset, model: FastVisionModel, processor: Any):
+    FastVisionModel.for_inference(model)  # Enable for inference!
+
+    print("Running on validation set to verify model...")
+    for messages in tqdm.tqdm(val_ds, desc="validation samples"):
+        model_inputs = processor.apply_chat_template(
+            messages,
+            tokenize=True,
+            add_generation_prompt=True,
+            return_tensors="pt",
+        ).to(model.device)
+        _ = model.generate(model_inputs, max_new_tokens=4096, use_cache=True)
 
 
 def main(
@@ -93,6 +109,13 @@ def main(
         int,
         typer.Option(..., help="The maximum number of training steps. Ignored if -1"),
     ] = -1,
+    max_samples: Annotated[
+        int | None,
+        typer.Option(
+            ...,
+            help="The maximum number of samples to use from the dataset. If None, use all samples",
+        ),
+    ] = None,
     shuffle_dataset: Annotated[
         bool,
         typer.Option(..., help="Whether to shuffle the dataset"),
@@ -135,15 +158,23 @@ def main(
     )
     dataset = load_dataset(
         ds_repo_id,
-        split="train",
         columns=["image", "output"],
     )
+
+    train_ds = dataset["train"]
+    val_ds = dataset["validation"]
+
+    if shuffle_dataset:
+        train_ds = train_ds.shuffle()
+    if max_samples is not None:
+        train_ds = train_ds.select(list(range(max_samples)))
+
     ds_config = get_config(ds_repo_id=ds_repo_id)
     instructions = ds_config["instructions"]
     json_schema = ds_config["json_schema"]
     full_instructions = get_full_instructions(instructions, json_schema)
 
-    def convert_to_conversation(sample):
+    def convert_to_conversation(sample, train: bool = True):
         conversation = [
             {
                 "role": "user",
@@ -152,14 +183,17 @@ def main(
                     {"type": "image", "image": sample["image"]},
                 ],
             },
-            {
-                "role": "assistant",
-                "content": [{"type": "text", "text": sample["output"]}],
-            },
         ]
+        if train:
+            conversation.append(
+                {
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": sample["output"]}],
+                },
+            )
         return {"messages": conversation}
 
-    converted_dataset = dataset.map(
+    converted_train_dataset = dataset.map(
         convert_to_conversation, remove_columns=["image", "output"]
     )
 
@@ -169,7 +203,7 @@ def main(
         model=model,
         tokenizer=tokenizer,
         data_collator=UnslothVisionDataCollator(model, tokenizer),
-        train_dataset=converted_dataset,
+        train_dataset=converted_train_dataset,
         args=SFTConfig(
             per_device_train_batch_size=per_device_train_batch_size,
             gradient_accumulation_steps=gradient_accumulation_steps,
@@ -193,6 +227,11 @@ def main(
     trainer.train()
     model.push_to_hub(output_repo_id, token=hf_token)
     tokenizer.push_to_hub(output_repo_id, token=hf_token)
+    converted_val_dataset = val_ds.map(
+        functools.partial(convert_to_conversation, train=False),
+        remove_columns=["image", "output"],
+    )
+    run_on_validation_set(converted_val_dataset, model, trainer.data_collator.processor)
 
 
 if __name__ == "__main__":
