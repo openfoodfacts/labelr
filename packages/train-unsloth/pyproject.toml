@@ -1,0 +1,12 @@
+[project]
+name = "train-unsloth"
+version = "0.1.0"
+description = "A CLI to train LLM using Unsloth framework"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "typer>=0.15.1",
+    "tqdm",
+    "Pillow",
+    "unsloth==2026.1.2",
+]
