@@ -1,20 +1,21 @@
 from pathlib import Path
 from typing import Annotated, Any
 
+# trl should be imported after unsloth
 import orjson
 import torch
 import typer
 from datasets import load_dataset
 from huggingface_hub import hf_hub_download
 from trl import SFTConfig, SFTTrainer
-from unsloth import FastVisionModel  # FastLanguageModel for LLMs
+from unsloth import FastVisionModel
 from unsloth.trainer import UnslothVisionDataCollator
 
 JSONType = dict[str, Any]
 
 
 def get_config(ds_repo_id: str):
-    config_path = hf_hub_download(ds_repo_id, "config.json")
+    config_path = hf_hub_download(ds_repo_id, "config.json", repo_type="dataset")
     return orjson.loads(Path(config_path).read_bytes())
 
 
@@ -66,7 +67,7 @@ def main(
     ] = 0.0,
     use_rslora: Annotated[
         bool,
-        typer.Option(False, help="Whether to use Rank Stabilized LoRA"),
+        typer.Option(..., help="Whether to use Rank Stabilized LoRA"),
     ] = False,
     per_device_train_batch_size: Annotated[
         int,
@@ -187,7 +188,6 @@ def main(
             dataset_text_field="",
             dataset_kwargs={"skip_prepare_dataset": True},
             max_length=None,
-            shuffle_dataset=shuffle_dataset,
         ),
     )
     trainer.train()
@@ -196,4 +196,4 @@ def main(
 
 
 if __name__ == "__main__":
-    main()
+    typer.run(main)

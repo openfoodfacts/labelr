@@ -9,4 +9,5 @@ dependencies = [
     "tqdm",
     "Pillow",
     "unsloth==2026.1.2",
+    "orjson",
 ]
