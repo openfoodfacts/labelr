@@ -11,6 +11,7 @@ from unsloth.trainer import UnslothVisionDataCollator
 # trl should be imported after unsloth
 from datasets import Dataset, load_dataset
 from huggingface_hub import hf_hub_download
+from transformers import ProcessorMixin
 from trl import SFTConfig, SFTTrainer
 
 JSONType = dict[str, Any]
@@ -28,15 +29,18 @@ def get_full_instructions(instructions: str, json_schema: JSONType):
     return f"{instructions}\n\nResponse must be formatted as JSON, and follow this JSON schema:\n{json_schema_str}"
 
 
-def run_on_validation_set(val_ds: Dataset, model: FastVisionModel, tokenizer: Any):
-    FastVisionModel.for_inference(model)  # Enable for inference!
+def run_on_validation_set(
+    val_ds: Dataset, model: FastVisionModel, processor: ProcessorMixin
+):
+    # Enable inference mode
+    FastVisionModel.for_inference(model)
 
     print("Running on validation set to verify model...")
     for sample in tqdm.tqdm(val_ds, desc="validation samples"):
-        input_text = tokenizer.apply_chat_template(
+        input_text = processor.apply_chat_template(
             sample["messages"], add_generation_prompt=True
         )
-        inputs = tokenizer(
+        inputs = processor(
             sample["image"],
             input_text,
             add_special_tokens=False,
@@ -147,7 +151,7 @@ def main(
         typer.Option(..., help="Whether to run training"),
     ] = True,
 ):
-    model, tokenizer = FastVisionModel.from_pretrained(
+    model, processor = FastVisionModel.from_pretrained(
         base_model,
         load_in_4bit=True,
         use_gradient_checkpointing="unsloth",
@@ -223,8 +227,8 @@ def main(
     FastVisionModel.for_training(model)
     trainer = SFTTrainer(
         model=model,
-        tokenizer=tokenizer,
-        data_collator=UnslothVisionDataCollator(model, tokenizer, max_seq_length=8192),
+        tokenizer=processor,
+        data_collator=UnslothVisionDataCollator(model, processor, max_seq_length=8192),
         train_dataset=converted_train_dataset,
         args=SFTConfig(
             per_device_train_batch_size=per_device_train_batch_size,
@@ -252,13 +256,13 @@ def main(
 
     if push_to_hub:
         model.push_to_hub(output_repo_id, token=hf_token)
-        tokenizer.push_to_hub(output_repo_id, token=hf_token)
+        processor.push_to_hub(output_repo_id, token=hf_token)
 
     converted_val_dataset = val_ds.map(
         functools.partial(convert_to_conversation, train=False),
         remove_columns=["output"],
     )
-    run_on_validation_set(converted_val_dataset, model, tokenizer)
+    run_on_validation_set(converted_val_dataset, model, processor)
 
 
 if __name__ == "__main__":
