@@ -201,7 +201,7 @@ def train(
     logging_steps: Annotated[
         int,
         typer.Option(..., help="The number of logging steps"),
-    ] = 10,
+    ] = 1,
     push_to_hub: Annotated[
         bool,
         typer.Option(..., help="Whether to push the trained model to the HF Hub"),
