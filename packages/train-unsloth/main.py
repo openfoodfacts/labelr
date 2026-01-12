@@ -1,18 +1,23 @@
 import functools
+import tempfile
 from pathlib import Path
 from typing import Annotated, Any
 
+# trl should be imported after unsloth
+from unsloth import FastVisionModel
+from unsloth.trainer import UnslothVisionDataCollator
+# Rest of the imports
 import orjson
 import tqdm
 import typer
-
-from unsloth import FastVisionModel
-from unsloth.trainer import UnslothVisionDataCollator
-# trl should be imported after unsloth
 from datasets import Dataset, load_dataset
-from huggingface_hub import hf_hub_download
-from transformers import ProcessorMixin
+from huggingface_hub import hf_hub_download, upload_file
+from more_itertools import chunked
 from trl import SFTConfig, SFTTrainer
+
+from vllm import LLM, SamplingParams
+from vllm.lora.request import LoRARequest
+from vllm.sampling_params import StructuredOutputsParams
 
 JSONType = dict[str, Any]
 
@@ -30,27 +35,83 @@ def get_full_instructions(instructions: str, json_schema: JSONType):
 
 
 def run_on_validation_set(
-    val_ds: Dataset, model: FastVisionModel, processor: ProcessorMixin
-):
-    # Enable inference mode
-    FastVisionModel.for_inference(model)
+    base_model: str,
+    val_ds: Dataset,
+    lora_checkpoint_dir: Path,
+    output_path: Path,
+    json_schema: JSONType,
+    batch_size: int = 4,
+) -> None:
+    """Run the model on the validation set and save the outputs to a JSONL
+    file.
 
-    print("Running on validation set to verify model...")
-    for sample in tqdm.tqdm(val_ds, desc="validation samples"):
-        input_text = processor.apply_chat_template(
-            sample["messages"], add_generation_prompt=True
-        )
-        inputs = processor(
-            sample["image"],
-            input_text,
-            add_special_tokens=False,
-            return_tensors="pt",
-        ).to(model.device)
-        _ = model.generate(**inputs, max_new_tokens=4096, use_cache=True)
+    We use vLLM for inference. We currently assume the base model is a
+    Qwen3-VL model.
+
+    Args:
+        base_model (str): The base model to use for inference. The LoRA
+            weights will be applied on top of this model.
+        val_ds (Dataset): The validation dataset, already formatted with the
+            chat template.
+        lora_checkpoint_dir (Path): The path to the LoRA checkpoint directory.
+        output_path (Path): The path to the output JSONL file.
+        json_schema (JSONType): The JSON schema to use for structured outputs.
+        batch_size (int, optional): The batch size to use for inference.
+            Defaults to 4.
+    """
+    llm = LLM(
+        model=base_model,
+        enable_lora=True,
+        # Applying configuration tips for Qwen-VL models:
+        # https://docs.vllm.ai/projects/recipes/en/latest/Qwen/Qwen3-VL.html#configuration-tips
+        limit_mm_per_prompt={"video": 0},
+        # The validation dataset is comprised of unique images, disable
+        # multimodal caching
+        mm_processor_cache_gb=0,
+    )
+
+    # We guide the model to produce structured JSON outputs using the provided
+    # JSON schema.
+    structured_outputs_params = StructuredOutputsParams(json=json_schema)
+    sampling_params = SamplingParams(structured_outputs=structured_outputs_params)
+
+    # Process the validation dataset
+    outputs = []
+    for samples in tqdm.tqdm(
+        chunked(val_ds, batch_size), desc="Running inference on validation set"
+    ):
+        # Extract the image and prompt from the sample
+        conversations = [sample["messages"] for sample in samples]
+
+        # Run inference using vLLM
+        try:
+            outputs = llm.chat(
+                conversations,
+                sampling_params=sampling_params,
+                lora_request=LoRARequest(
+                    lora_name="train-unsloth",
+                    lora_int_id=1,
+                    lora_path=str(lora_checkpoint_dir),
+                ),
+            )
+            generated_texts = [output.outputs[0].text for output in outputs]
+        except Exception as e:
+            print(f"Error generating output for prompt: {e}")
+        else:
+            for sample, generated_text in zip(samples, generated_texts):
+                # Store the output
+                outputs.append(
+                    {"image_id": sample["image_id"], "output": generated_text}
+                )
+
+    # Save the outputs to a JSONL file
+    with open(output_path, "w") as f:
+        for output in outputs:
+            f.write(orjson.dumps(output).decode("utf-8") + "\n")
 
 
 @app.command()
-def main(
+def train(
     ds_repo_id: Annotated[str, typer.Option(..., help="The HF dataset repo ID")],
     output_repo_id: Annotated[
         str, typer.Option(..., help="The HF repo ID to push the trained model to")
@@ -224,7 +285,7 @@ def main(
                     "role": "user",
                     "content": [
                         {"type": "text", "text": full_instructions},
-                        {"type": "image"},
+                        {"type": "image_pil", "image_pil": sample["image"]},
                     ],
                 }
             ]
@@ -278,9 +339,31 @@ def main(
 
     converted_val_dataset = val_ds.map(
         functools.partial(convert_to_conversation, train=False),
-        remove_columns=["output"],
+        remove_columns=["image", "output"],
     )
-    run_on_validation_set(converted_val_dataset, model, processor)
+
+    with tempfile.TemporaryDirectory() as tmp_dir_str:
+        tmp_dir = Path(tmp_dir_str)
+        checkpoint_dir = tmp_dir / "model"
+        model.save_pretrained(checkpoint_dir)
+        processor.save_pretrained(checkpoint_dir)
+        output_file = tmp_dir / "validation_output.jsonl"
+        run_on_validation_set(
+            base_model=base_model,
+            val_ds=converted_val_dataset,
+            lora_checkpoint_dir=checkpoint_dir,
+            output_path=output_file,
+            json_schema=json_schema,
+            batch_size=per_device_train_batch_size,
+        )
+        # Upload the validation outputs to the Hub
+        upload_file(
+            output_file,
+            path_in_repo="validation_output.jsonl",
+            repo_id=output_repo_id,
+            token=hf_token,
+            repo_type="model",
+        )
 
 
 if __name__ == "__main__":

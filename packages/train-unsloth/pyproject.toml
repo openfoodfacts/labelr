@@ -10,4 +10,6 @@ dependencies = [
     "Pillow",
     "unsloth==2026.1.2",
     "orjson",
+    "vllm>=0.13.0",
+    "more-itertools>=10.8.0",
 ]
