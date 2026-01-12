@@ -116,7 +116,6 @@ def train(
     output_repo_id: Annotated[
         str, typer.Option(..., help="The HF repo ID to push the trained model to")
     ],
-    hf_token: Annotated[str, typer.Option(..., help="The HF token")],
     base_model: Annotated[
         str,
         typer.Option(
@@ -334,8 +333,8 @@ def train(
         trainer.train()
 
     if push_to_hub:
-        model.push_to_hub(output_repo_id, token=hf_token)
-        processor.push_to_hub(output_repo_id, token=hf_token)
+        model.push_to_hub(output_repo_id)
+        processor.push_to_hub(output_repo_id)
 
     converted_val_dataset = val_ds.map(
         functools.partial(convert_to_conversation, train=False),
@@ -361,7 +360,6 @@ def train(
             output_file,
             path_in_repo="validation_output.jsonl",
             repo_id=output_repo_id,
-            token=hf_token,
             repo_type="model",
         )
 
