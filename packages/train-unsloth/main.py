@@ -321,7 +321,7 @@ def train(
             weight_decay=weight_decay,
             lr_scheduler_type="linear",
             output_dir="outputs",
-            report_to="none",  # For Weights and Biases
+            report_to="wandb",
             # The following fields are required for vision finetuning
             remove_unused_columns=False,
             dataset_text_field="",
