@@ -8,6 +8,7 @@ from unsloth import FastVisionModel
 from unsloth.trainer import UnslothVisionDataCollator
 # Rest of the imports
 import orjson
+import torch
 import tqdm
 import typer
 from datasets import Dataset, load_dataset
