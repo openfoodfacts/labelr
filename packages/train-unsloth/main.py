@@ -341,12 +341,17 @@ def train(
         remove_columns=["image", "output"],
     )
 
-    with tempfile.TemporaryDirectory() as tmp_dir_str:
+    with tempfile.TemporaryDirectory(suffix="-lora-weights-val") as tmp_dir_str:
         tmp_dir = Path(tmp_dir_str)
         checkpoint_dir = tmp_dir / "model"
+        typer.echo(f"Saving LoRA adapters weights to {checkpoint_dir}")
         model.save_pretrained(checkpoint_dir)
         processor.save_pretrained(checkpoint_dir)
+        del model  # free up memory
+        del processor
+        torch.cuda.empty_cache()
         output_file = tmp_dir / "validation_output.jsonl"
+        typer.echo("Running model on validation set...")
         run_on_validation_set(
             base_model=base_model,
             val_ds=converted_val_dataset,
@@ -355,6 +360,7 @@ def train(
             json_schema=json_schema,
             batch_size=per_device_train_batch_size,
         )
+        typer.echo("Uploading validation outputs to the Hub...")
         # Upload the validation outputs to the Hub
         upload_file(
             output_file,
