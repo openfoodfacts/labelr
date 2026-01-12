@@ -150,6 +150,17 @@ def main(
         bool,
         typer.Option(..., help="Whether to run training"),
     ] = True,
+    image_max_size: Annotated[
+        int,
+        typer.Option(
+            ...,
+            help="The maximum size (height or width) of the images after resizing",
+        ),
+    ] = 1024,
+    max_seq_length: Annotated[
+        int,
+        typer.Option(..., help="The maximum sequence length for the model"),
+    ] = 8192,
 ):
     model, processor = FastVisionModel.from_pretrained(
         base_model,
@@ -228,7 +239,14 @@ def main(
     trainer = SFTTrainer(
         model=model,
         tokenizer=processor,
-        data_collator=UnslothVisionDataCollator(model, processor, max_seq_length=8192),
+        data_collator=UnslothVisionDataCollator(
+            model,
+            processor,
+            max_seq_length=max_seq_length,
+            # Resize images to limit VRAM consumption
+            resize_dimension="max",
+            resize=image_max_size,
+        ),
         train_dataset=converted_train_dataset,
         args=SFTConfig(
             per_device_train_batch_size=per_device_train_batch_size,
