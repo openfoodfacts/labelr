@@ -1,20 +1,13 @@
 import functools
-import tempfile
 from pathlib import Path
 from typing import Annotated, Any
 
-# trl should be imported after unsloth
-from unsloth import FastVisionModel
-from unsloth.trainer import UnslothVisionDataCollator
-# Rest of the imports
 import orjson
-import torch
 import tqdm
 import typer
 from datasets import Dataset, load_dataset
-from huggingface_hub import hf_hub_download, upload_file
+from huggingface_hub import hf_hub_download, snapshot_download, upload_file
 from more_itertools import chunked
-from trl import SFTConfig, SFTTrainer
 
 JSONType = dict[str, Any]
 
@@ -105,6 +98,34 @@ def run_on_validation_set(
     with open(output_path, "w") as f:
         for output in outputs:
             f.write(orjson.dumps(output).decode("utf-8") + "\n")
+
+
+def convert_to_conversation(sample, instructions: str, train: bool = True):
+    if train:
+        conversation = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": instructions},
+                    {"type": "image", "image": sample["image"]},
+                ],
+            },
+            {
+                "role": "assistant",
+                "content": [{"type": "text", "text": sample["output"]}],
+            },
+        ]
+    else:
+        conversation = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": instructions},
+                    {"type": "image_pil", "image_pil": sample["image"]},
+                ],
+            }
+        ]
+    return {"messages": conversation}
 
 
 @app.command()
@@ -219,6 +240,12 @@ def train(
         typer.Option(..., help="The maximum sequence length for the model"),
     ] = 8192,
 ):
+    from unsloth import FastVisionModel  # isort:skip
+    from unsloth.trainer import UnslothVisionDataCollator  # isort:skip
+
+    # then import trl
+    from trl import SFTConfig, SFTTrainer
+
     model, processor = FastVisionModel.from_pretrained(
         base_model,
         load_in_4bit=True,
@@ -248,7 +275,6 @@ def train(
     )
 
     train_ds = ds["train"]
-    val_ds = ds["val"]
 
     if shuffle_dataset:
         train_ds = train_ds.shuffle()
@@ -260,35 +286,11 @@ def train(
     json_schema = ds_config["json_schema"]
     full_instructions = get_full_instructions(instructions, json_schema)
 
-    def convert_to_conversation(sample, train: bool = True):
-        if train:
-            conversation = [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": full_instructions},
-                        {"type": "image", "image": sample["image"]},
-                    ],
-                },
-                {
-                    "role": "assistant",
-                    "content": [{"type": "text", "text": sample["output"]}],
-                },
-            ]
-        else:
-            conversation = [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": full_instructions},
-                        {"type": "image_pil", "image_pil": sample["image"]},
-                    ],
-                }
-            ]
-        return {"messages": conversation}
-
     converted_train_dataset = train_ds.map(
-        convert_to_conversation, remove_columns=["image", "output"]
+        functools.partial(
+            convert_to_conversation, instructions=full_instructions, train=True
+        ),
+        remove_columns=["image", "output"],
     )
 
     # Enable training mode
@@ -333,38 +335,66 @@ def train(
         model.push_to_hub(output_repo_id)
         processor.push_to_hub(output_repo_id)
 
+
+@app.command()
+def validate(
+    ds_repo_id: Annotated[str, typer.Option(..., help="The HF dataset repo ID")],
+    lora_repo_id: Annotated[
+        str, typer.Option(..., help="The HF repo ID where the LoRA adapters are stored")
+    ],
+    output_path: Annotated[
+        Path,
+        typer.Option(..., help="The path to the output JSONL file"),
+    ],
+    base_model: Annotated[
+        str,
+        typer.Option(
+            ...,
+            help="The base model associated with the LoRA adapters.",
+        ),
+    ] = "unsloth/Qwen3-VL-8B-Instruct",
+    batch_size: Annotated[
+        int,
+        typer.Option(..., help="The per-device batch size to use during validation"),
+    ] = 8,
+):
+    typer.echo("Running model on validation set...")
+
+    val_ds = load_dataset(
+        ds_repo_id,
+        columns=["image", "output", "image_id"],
+    )["val"]
+    ds_config = get_config(ds_repo_id=ds_repo_id)
+    instructions = ds_config["instructions"]
+    json_schema = ds_config["json_schema"]
+    full_instructions = get_full_instructions(instructions, json_schema)
+
     converted_val_dataset = val_ds.map(
-        functools.partial(convert_to_conversation, train=False),
+        functools.partial(
+            convert_to_conversation, instructions=full_instructions, train=False
+        ),
         remove_columns=["image", "output"],
     )
 
-    with tempfile.TemporaryDirectory(suffix="-lora-weights-val") as tmp_dir_str:
-        tmp_dir = Path(tmp_dir_str)
-        checkpoint_dir = tmp_dir / "model"
-        typer.echo(f"Saving LoRA adapters weights to {checkpoint_dir}")
-        model.save_pretrained(checkpoint_dir)
-        processor.save_pretrained(checkpoint_dir)
-        del model  # free up memory
-        del processor
-        torch.cuda.empty_cache()
-        output_file = tmp_dir / "validation_output.jsonl"
-        typer.echo("Running model on validation set...")
-        run_on_validation_set(
-            base_model=base_model,
-            val_ds=converted_val_dataset,
-            lora_checkpoint_dir=checkpoint_dir,
-            output_path=output_file,
-            json_schema=json_schema,
-            batch_size=per_device_train_batch_size,
-        )
-        typer.echo("Uploading validation outputs to the Hub...")
-        # Upload the validation outputs to the Hub
-        upload_file(
-            output_file,
-            path_in_repo="validation_output.jsonl",
-            repo_id=output_repo_id,
-            repo_type="model",
-        )
+    typer.echo("Downloading LoRA weights...")
+    lora_checkpoint_path = snapshot_download(repo_id=lora_repo_id, repo_type="model")
+    run_on_validation_set(
+        base_model=base_model,
+        val_ds=converted_val_dataset,
+        lora_checkpoint_dir=lora_checkpoint_path,
+        output_path=output_path,
+        json_schema=json_schema,
+        batch_size=batch_size,
+    )
+
+    typer.echo("Uploading validation outputs to the Hub...")
+    # Upload the validation outputs to the Hub
+    upload_file(
+        output_path,
+        path_in_repo="validation_output.jsonl",
+        repo_id=output_repo_id,
+        repo_type="model",
+    )
 
 
 if __name__ == "__main__":
