@@ -16,10 +16,6 @@ from huggingface_hub import hf_hub_download, upload_file
 from more_itertools import chunked
 from trl import SFTConfig, SFTTrainer
 
-from vllm import LLM, SamplingParams
-from vllm.lora.request import LoRARequest
-from vllm.sampling_params import StructuredOutputsParams
-
 JSONType = dict[str, Any]
 
 app = typer.Typer(pretty_exceptions_enable=False)
@@ -372,4 +368,8 @@ def train(
 
 
 if __name__ == "__main__":
+    from vllm import LLM, SamplingParams
+    from vllm.lora.request import LoRARequest
+    from vllm.sampling_params import StructuredOutputsParams
+
     app()
