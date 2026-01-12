@@ -8,6 +8,7 @@ import typer
 from datasets import Dataset, load_dataset
 from huggingface_hub import hf_hub_download, snapshot_download, upload_file
 from more_itertools import chunked
+from PIL import Image
 
 JSONType = dict[str, Any]
 
@@ -30,6 +31,7 @@ def run_on_validation_set(
     lora_checkpoint_dir: Path,
     output_path: Path,
     json_schema: JSONType,
+    max_seq_length: int,
     batch_size: int = 4,
 ) -> None:
     """Run the model on the validation set and save the outputs to a JSONL
@@ -46,6 +48,7 @@ def run_on_validation_set(
         lora_checkpoint_dir (Path): The path to the LoRA checkpoint directory.
         output_path (Path): The path to the output JSONL file.
         json_schema (JSONType): The JSON schema to use for structured outputs.
+        max_seq_length (int): The maximum sequence length for the model.
         batch_size (int, optional): The batch size to use for inference.
             Defaults to 4.
     """
@@ -58,6 +61,7 @@ def run_on_validation_set(
         # The validation dataset is comprised of unique images, disable
         # multimodal caching
         mm_processor_cache_gb=0,
+        max_model_len=max_seq_length,
     )
 
     # We guide the model to produce structured JSON outputs using the provided
@@ -65,16 +69,15 @@ def run_on_validation_set(
     structured_outputs_params = StructuredOutputsParams(json=json_schema)
     sampling_params = SamplingParams(structured_outputs=structured_outputs_params)
 
-    # Process the validation dataset
-    outputs = []
-    for samples in tqdm.tqdm(
-        chunked(val_ds, batch_size), desc="Running inference on validation set"
-    ):
-        # Extract the image and prompt from the sample
-        conversations = [sample["messages"] for sample in samples]
+    with output_path.open("w") as f:
+        # Process the validation dataset
+        for samples in tqdm.tqdm(
+            chunked(val_ds, batch_size), desc="Running inference on validation set"
+        ):
+            # Extract the image and prompt from the sample
+            conversations = [sample["messages"] for sample in samples]
 
-        # Run inference using vLLM
-        try:
+            # Run inference using vLLM
             outputs = llm.chat(
                 conversations,
                 sampling_params=sampling_params,
@@ -85,29 +88,42 @@ def run_on_validation_set(
                 ),
             )
             generated_texts = [output.outputs[0].text for output in outputs]
-        except Exception as e:
-            print(f"Error generating output for prompt: {e}")
-        else:
             for sample, generated_text in zip(samples, generated_texts):
                 # Store the output
-                outputs.append(
-                    {"image_id": sample["image_id"], "output": generated_text}
-                )
-
-    # Save the outputs to a JSONL file
-    with open(output_path, "w") as f:
-        for output in outputs:
-            f.write(orjson.dumps(output).decode("utf-8") + "\n")
+                output = {"image_id": sample["image_id"], "output": generated_text}
+                f.write(orjson.dumps(output).decode("utf-8") + "\n")
 
 
-def convert_to_conversation(sample, instructions: str, train: bool = True):
+def convert_to_conversation(
+    sample: JSONType,
+    instructions: str,
+    train: bool = True,
+    image_max_size: int | None = None,
+):
+    """Convert a dataset sample to a conversation format.
+
+    Args:
+        sample: A dataset sample containing "image" and "output" fields.
+        instructions: The instructions to include in the conversation.
+        train: Whether the conversion is for training (includes output) or
+            validation (excludes output).
+        image_max_size: The maximum size (height or width) of the images after
+            resizing. If None, no resizing is performed.
+    Returns:
+        A dictionary with a "messages" field containing the conversation.
+    """
+    image = sample["image"]
+    if image_max_size is not None:
+        # Resize the image while maintaining aspect ratio
+        image.thumbnail((image_max_size, image_max_size), Image.Resampling.LANCZOS)
+
     if train:
         conversation = [
             {
                 "role": "user",
                 "content": [
                     {"type": "text", "text": instructions},
-                    {"type": "image", "image": sample["image"]},
+                    {"type": "image", "image": image},
                 ],
             },
             {
@@ -121,7 +137,7 @@ def convert_to_conversation(sample, instructions: str, train: bool = True):
                 "role": "user",
                 "content": [
                     {"type": "text", "text": instructions},
-                    {"type": "image_pil", "image_pil": sample["image"]},
+                    {"type": "image", "image": image},
                 ],
             }
         ]
@@ -357,6 +373,17 @@ def validate(
         int,
         typer.Option(..., help="The per-device batch size to use during validation"),
     ] = 8,
+    image_max_size: Annotated[
+        int,
+        typer.Option(
+            ...,
+            help="The maximum size (height or width) of the images after resizing",
+        ),
+    ] = 1024,
+    max_seq_length: Annotated[
+        int,
+        typer.Option(..., help="The maximum sequence length for the model"),
+    ] = 8192,
 ):
     typer.echo("Running model on validation set...")
 
@@ -371,7 +398,10 @@ def validate(
 
     converted_val_dataset = val_ds.map(
         functools.partial(
-            convert_to_conversation, instructions=full_instructions, train=False
+            convert_to_conversation,
+            instructions=full_instructions,
+            train=False,
+            image_max_size=image_max_size,
         ),
         remove_columns=["image", "output"],
     )
@@ -385,6 +415,7 @@ def validate(
         output_path=output_path,
         json_schema=json_schema,
         batch_size=batch_size,
+        max_seq_length=max_seq_length,
     )
 
     typer.echo("Uploading validation outputs to the Hub...")
@@ -392,7 +423,7 @@ def validate(
     upload_file(
         output_path,
         path_in_repo="validation_output.jsonl",
-        repo_id=output_repo_id,
+        repo_id=lora_repo_id,
         repo_type="model",
     )
 

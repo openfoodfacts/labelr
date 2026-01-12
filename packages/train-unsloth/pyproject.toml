@@ -13,4 +13,7 @@ dependencies = [
     "vllm>=0.13.0",
     "more-itertools>=10.8.0",
     "wandb>=0.23.1",
+    # pin torchao to 0.14.1, compatible with torch 2.9.0
+    # See https://github.com/pytorch/ao/issues/2919
+    "torchao==0.14.1",
 ]
