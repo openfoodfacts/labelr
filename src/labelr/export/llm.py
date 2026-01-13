@@ -26,6 +26,7 @@ def export_to_hf_llm_image_extraction(
     repo_id: str,
     revision: str = "main",
     tmp_dir: Path | None = None,
+    image_max_size: int | None = None,
 ) -> None:
     """Export LLM image extraction samples to a Hugging Face dataset.
 
@@ -39,13 +40,15 @@ def export_to_hf_llm_image_extraction(
         tmp_dir (Path | None): Temporary directory to use for intermediate
             files. If None, a temporary directory will be created
             automatically.
+        image_max_size (int | None): Maximum size (in pixels) for the images.
     """
     logger.info(
-        "Repo ID: %s, revision: %s, split: %s, tmp_dir: %s",
+        "Repo ID: %s, revision: %s, split: %s, tmp_dir: %s, image_max_size: %s",
         repo_id,
         revision,
         split,
         tmp_dir,
+        image_max_size,
     )
 
     tmp_dir_with_context: PathWithContext | tempfile.TemporaryDirectory
@@ -61,6 +64,13 @@ def export_to_hf_llm_image_extraction(
             image = sample.image
             # Rotate image according to exif orientation using Pillow
             image = typing.cast(Image.Image, ImageOps.exif_transpose(image))
+
+            if image_max_size is not None:
+                if image.height > image_max_size or image.width > image_max_size:
+                    image.thumbnail(
+                        (image_max_size, image_max_size),
+                        Image.Resampling.LANCZOS,
+                    )
             image_id = sample.image_id
             json_sample = {
                 "image_id": image_id,

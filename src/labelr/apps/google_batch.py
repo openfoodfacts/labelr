@@ -239,6 +239,12 @@ def upload_training_dataset_from_predictions(
             help="Whether to raise an error on invalid samples instead of skipping them",
         ),
     ] = False,
+    image_max_size: Annotated[
+        int | None,
+        typer.Option(
+            help="Maximum size (in pixels) for the images. If None, no resizing is performed.",
+        ),
+    ] = None,
 ):
     """Upload a training dataset to a Hugging Face Datasets repository from a
     Gemini batch prediction file."""
@@ -286,4 +292,5 @@ def upload_training_dataset_from_predictions(
         repo_id=repo_id,
         revision=revision,
         tmp_dir=tmp_dir,
+        image_max_size=image_max_size,
     )

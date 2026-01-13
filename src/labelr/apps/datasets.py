@@ -330,6 +330,12 @@ def export_llm_ds(
             help="Path to a temporary directory to use for image processing",
         ),
     ] = None,
+    image_max_size: Annotated[
+        int | None,
+        typer.Option(
+            help="Maximum size (in pixels) for the images. If None, no resizing is performed.",
+        ),
+    ] = None,
 ):
     """Export LLM image extraction dataset with images only to Hugging Face
     Datasets.
@@ -341,5 +347,10 @@ def export_llm_ds(
         dataset_path=dataset_path
     )
     export_to_hf_llm_image_extraction(
-        sample_iter, split=split, repo_id=repo_id, revision=revision, tmp_dir=tmp_dir
+        sample_iter,
+        split=split,
+        repo_id=repo_id,
+        revision=revision,
+        tmp_dir=tmp_dir,
+        image_max_size=image_max_size,
     )
