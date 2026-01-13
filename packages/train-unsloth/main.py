@@ -1,4 +1,5 @@
 import functools
+from io import BytesIO
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -67,7 +68,17 @@ def run_on_validation_set(
     # We guide the model to produce structured JSON outputs using the provided
     # JSON schema.
     structured_outputs_params = StructuredOutputsParams(json=json_schema)
-    sampling_params = SamplingParams(structured_outputs=structured_outputs_params)
+    sampling_params = SamplingParams(
+        structured_outputs=structured_outputs_params, max_tokens=8192
+    )
+
+    def reformat_conversation(conversation: JSONType) -> JSONType:
+        image_bytes = conversation[-1]["content"][-1]["image_pil"]["bytes"]
+        conversation[-1]["content"][-1] = {
+            "image_pil": Image.open(BytesIO(image_bytes)),
+            "type": "image_pil",
+        }
+        return conversation
 
     with output_path.open("w") as f:
         # Process the validation dataset
@@ -75,9 +86,10 @@ def run_on_validation_set(
             chunked(val_ds, batch_size), desc="Running inference on validation set"
         ):
             # Extract the image and prompt from the sample
-            conversations = [sample["messages"] for sample in samples]
+            conversations = [
+                reformat_conversation(sample["messages"]) for sample in samples
+            ]
 
-            # Run inference using vLLM
             outputs = llm.chat(
                 conversations,
                 sampling_params=sampling_params,
@@ -87,11 +99,12 @@ def run_on_validation_set(
                     lora_path=str(lora_checkpoint_dir),
                 ),
             )
-            generated_texts = [output.outputs[0].text for output in outputs]
-            for sample, generated_text in zip(samples, generated_texts):
+
+            for sample, output in zip(samples, outputs):
+                generated_text = output.outputs[0].text
                 # Store the output
-                output = {"image_id": sample["image_id"], "output": generated_text}
-                f.write(orjson.dumps(output).decode("utf-8") + "\n")
+                line = {"image_id": sample["image_id"], "output": generated_text}
+                f.write(orjson.dumps(line).decode("utf-8") + "\n")
 
 
 def convert_to_conversation(
@@ -137,7 +150,7 @@ def convert_to_conversation(
                 "role": "user",
                 "content": [
                     {"type": "text", "text": instructions},
-                    {"type": "image", "image": image},
+                    {"type": "image_pil", "image_pil": image},
                 ],
             }
         ]
@@ -159,8 +172,12 @@ def train(
     ] = "unsloth/Qwen3-VL-8B-Instruct-unsloth-bnb-4bit",
     finetune_vision_layers: Annotated[
         bool,
-        typer.Option(..., help="Whether to finetune the vision layers of the model"),
-    ] = True,
+        typer.Option(
+            ...,
+            help="Whether to finetune the vision layers of the model. Defaults to False, "
+            "as vLLM currently doesn't support LoRA adapters added to vision layers (as of v0.13).",
+        ),
+    ] = False,
     finetune_language_layers: Annotated[
         bool,
         typer.Option(..., help="Whether to finetune the language layers of the model"),
