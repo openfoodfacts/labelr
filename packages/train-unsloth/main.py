@@ -1,4 +1,5 @@
 import functools
+import typing
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -127,7 +128,7 @@ def train(
 ):
     from unsloth import FastVisionModel  # isort:skip
     from unsloth.trainer import UnslothVisionDataCollator  # isort:skip
-    from datasets import load_dataset
+    from datasets import Dataset, load_dataset
     from train_unsloth.common import (
         convert_to_conversation,
         get_config,
@@ -163,7 +164,7 @@ def train(
         columns=["image", "output"],
     )
 
-    train_ds = ds["train"]
+    train_ds = typing.cast(Dataset, ds["train"])
 
     if shuffle_dataset:
         train_ds = train_ds.shuffle()
@@ -175,18 +176,21 @@ def train(
     json_schema = ds_config["json_schema"]
     full_instructions = get_full_instructions(instructions, json_schema)
 
-    converted_train_dataset = train_ds.map(
-        functools.partial(
-            convert_to_conversation, instructions=full_instructions, train=True
+    converted_train_dataset = typing.cast(
+        Dataset,
+        train_ds.map(
+            functools.partial(
+                convert_to_conversation, instructions=full_instructions, train=True
+            ),
+            remove_columns=["image", "output"],
         ),
-        remove_columns=["image", "output"],
     )
 
     # Enable training mode
     FastVisionModel.for_training(model)
     trainer = SFTTrainer(
         model=model,
-        tokenizer=processor,
+        tokenizer=processor,  # type: ignore
         data_collator=UnslothVisionDataCollator(
             model,
             processor,
@@ -258,7 +262,7 @@ def validate(
         typer.Option(..., help="The maximum sequence length for the model"),
     ] = 8192,
 ):
-    from datasets import load_dataset
+    from datasets import Dataset, load_dataset
     from huggingface_hub import snapshot_download, upload_file
     from train_unsloth.common import (
         convert_to_conversation,
@@ -269,23 +273,29 @@ def validate(
 
     typer.echo("Running model on validation set...")
 
-    val_ds = load_dataset(
-        ds_repo_id,
-        columns=["image", "output", "image_id"],
-    )["val"]
+    val_ds = typing.cast(
+        Dataset,
+        load_dataset(
+            ds_repo_id,
+            columns=["image", "output", "image_id"],
+        )["val"],
+    )
     ds_config = get_config(ds_repo_id=ds_repo_id)
     instructions = ds_config["instructions"]
     json_schema = ds_config["json_schema"]
     full_instructions = get_full_instructions(instructions, json_schema)
 
-    converted_val_dataset = val_ds.map(
-        functools.partial(
-            convert_to_conversation,
-            instructions=full_instructions,
-            train=False,
-            image_max_size=image_max_size,
+    converted_val_dataset = typing.cast(
+        Dataset,
+        val_ds.map(
+            functools.partial(
+                convert_to_conversation,
+                instructions=full_instructions,
+                train=False,
+                image_max_size=image_max_size,
+            ),
+            remove_columns=["image", "output"],
         ),
-        remove_columns=["image", "output"],
     )
 
     typer.echo("Downloading LoRA weights...")
@@ -293,7 +303,7 @@ def validate(
     run_on_validation_set(
         base_model=base_model,
         val_ds=converted_val_dataset,
-        lora_checkpoint_dir=lora_checkpoint_path,
+        lora_checkpoint_dir=Path(lora_checkpoint_path),
         output_path=output_path,
         json_schema=json_schema,
         batch_size=batch_size,
