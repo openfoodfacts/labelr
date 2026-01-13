@@ -226,7 +226,6 @@ def train(
 
     if push_to_hub:
         model.push_to_hub(output_repo_id)
-        processor.push_to_hub(output_repo_id)
 
 
 @app.command()
