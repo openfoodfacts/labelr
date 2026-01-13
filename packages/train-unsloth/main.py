@@ -438,7 +438,7 @@ def validate(
     typer.echo("Uploading validation outputs to the Hub...")
     # Upload the validation outputs to the Hub
     upload_file(
-        output_path,
+        path_or_fileobj=output_path,
         path_in_repo="validation_output.jsonl",
         repo_id=lora_repo_id,
         repo_type="model",
