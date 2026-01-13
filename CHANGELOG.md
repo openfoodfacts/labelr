@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.10.0](https://github.com/openfoodfacts/labelr/compare/v0.9.0...v0.10.0) (2026-01-13)
+
+
+### Features
+
+* add first draft of train-unsloth package ([19998dc](https://github.com/openfoodfacts/labelr/commit/19998dc373fc1502d77d94fb210f6dacd2386045))
+* add labelr datasets export-llm-ds CLI command ([276c5b6](https://github.com/openfoodfacts/labelr/commit/276c5b6f10fe5a2955085a95e4148b860188b4d9))
+* **train-unsloth:** add a validate command ([9c837ea](https://github.com/openfoodfacts/labelr/commit/9c837ea9d4fd324c6afe672aa897313bb0f9af70))
+* **train-unsloth:** add new CLI params ([0112d73](https://github.com/openfoodfacts/labelr/commit/0112d73ef12bbf608c68e65eefa1663879d86a70))
+* **train-unsloth:** allow to specify image max size and max seq len ([3de960d](https://github.com/openfoodfacts/labelr/commit/3de960d2baa17c977e0747401f797016616c4c15))
+* **train-unsloth:** report to wandb ([0e5fd7c](https://github.com/openfoodfacts/labelr/commit/0e5fd7c8c8321cd54c7ad4589f6f0b1220388244))
+* **train-unsloth:** use vLLM to run on validation set ([ecaf560](https://github.com/openfoodfacts/labelr/commit/ecaf56063e88df5826c2a73ec4d0ad9e4490b344))
+
+
+### Bug Fixes
+
+* create and reuse storage.Client ([d2973b8](https://github.com/openfoodfacts/labelr/commit/d2973b8eed91465d08eac6471d2e4834e605b59f))
+* fix import and dependency issues ([15c62ef](https://github.com/openfoodfacts/labelr/commit/15c62eff44ef349357ee992bac3938138c661146))
+* fix overwritten imported func ([2377f1b](https://github.com/openfoodfacts/labelr/commit/2377f1b2b7f6e765a5c9519f399c87ff93ea7843))
+* import unsloth before trl ([f569fe0](https://github.com/openfoodfacts/labelr/commit/f569fe0069b34e82c425845cb5ebe1c1c0d8779f))
+* **train-unsloth:** add new parameters ([dc41867](https://github.com/openfoodfacts/labelr/commit/dc41867396fc3cad0d60f50465463ccb34974177))
+* **train-unsloth:** decrease logging-steps default value to 1 ([c4c8f07](https://github.com/openfoodfacts/labelr/commit/c4c8f07c334cce2632ad1312265ac23ec6216e5f))
+* **train-unsloth:** don't push the processor ([c3902a5](https://github.com/openfoodfacts/labelr/commit/c3902a5840b62c913caec692a9ff3e597d216134))
+* **train-unsloth:** fix bugs in validate command ([3757847](https://github.com/openfoodfacts/labelr/commit/3757847f6a3ef468e36c8a0a0548f79c89176def))
+* **train-unsloth:** fix call to upload_file ([05bd156](https://github.com/openfoodfacts/labelr/commit/05bd156bcaded544b2ae036f7492d8ecbb1392c5))
+* **train-unsloth:** fix issues with training script ([ea45e37](https://github.com/openfoodfacts/labelr/commit/ea45e37a36fc79bcf845a44f1d66f2d84b5fcce8))
+* **train-unsloth:** fix max_length ([6c0e2ac](https://github.com/openfoodfacts/labelr/commit/6c0e2ac8e6d7bbbd91f056a9de5f22299d4b8b41))
+* **train-unsloth:** fix Multiprocessing issue ([b88dabb](https://github.com/openfoodfacts/labelr/commit/b88dabb589e5edc08f3433ca7e585241ab146755))
+* **train-unsloth:** fix mypy typing issues ([2b24979](https://github.com/openfoodfacts/labelr/commit/2b249798e0fd3233da01dcc443d6410331249ea8))
+* **train-unsloth:** fix run_on_validation_set ([308a027](https://github.com/openfoodfacts/labelr/commit/308a0279d8641beece0e4e80f9f25c82b2942616))
+* **train-unsloth:** fix run_on_validation_set ([2e9878c](https://github.com/openfoodfacts/labelr/commit/2e9878ccec37c8aa4d450fb47194e1d83c23c11d))
+* **train-unsloth:** fix validation run ([881eedb](https://github.com/openfoodfacts/labelr/commit/881eedbe52952206b3bf1261013b77a1888f1dfe))
+* **train-unsloth:** free CUDA memory before running validation ([31647ef](https://github.com/openfoodfacts/labelr/commit/31647efee0a9528b2ca8253a5264c0951419c9c0))
+* **train-unsloth:** import torch ([985dd1d](https://github.com/openfoodfacts/labelr/commit/985dd1dd826bf77b37ff8b751c0c9f3af54b8972))
+* **train-unsloth:** let user authenticate to HF through HF_TOKEN envvar ([72f7175](https://github.com/openfoodfacts/labelr/commit/72f717516b482025db10031eace8f6811d45165b))
+* **train-unsloth:** rename tokenizer in processor ([86af6a4](https://github.com/openfoodfacts/labelr/commit/86af6a41441ea2d6751cefce6f27946ffa00b5da))
+
+
+### Technical
+
+* add labelr export CLI subcommand ([4525fdd](https://github.com/openfoodfacts/labelr/commit/4525fddc8bcbea2b44ea3239d400ca84f980f670))
+* create labelr.export subpackage ([57b46b7](https://github.com/openfoodfacts/labelr/commit/57b46b7b7b96b5ed89d10f0a58079d2b674c2baa))
+* **deps:** add missing typing libs ([279bbf8](https://github.com/openfoodfacts/labelr/commit/279bbf8070aefacf068caf72bc234c504551a3dd))
+* **deps:** add qwen-vl-utils to dependencies ([b417f34](https://github.com/openfoodfacts/labelr/commit/b417f34f32cb71568d0593875c9d2b264538ece0))
+* **train-unsloth:** add wandb dep ([e042d85](https://github.com/openfoodfacts/labelr/commit/e042d8564fcaf6c5f1d8934b634364098a3bf148))
+* **train-unsloth:** create train-unsloth package ([b789358](https://github.com/openfoodfacts/labelr/commit/b78935833960543a4581e206d04160964934123d))
+
 ## [0.9.0](https://github.com/openfoodfacts/labelr/compare/v0.8.0...v0.9.0) (2026-01-05)
 
 
