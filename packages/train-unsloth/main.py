@@ -91,8 +91,8 @@ def train(
     ] = None,
     shuffle_dataset: Annotated[
         bool,
-        typer.Option(..., help="Whether to shuffle the dataset"),
-    ] = True,
+        typer.Option(..., help="Whether to shuffle the train dataset"),
+    ] = False,
     optim: Annotated[
         str,
         typer.Option(..., help="The optimizer to use"),
