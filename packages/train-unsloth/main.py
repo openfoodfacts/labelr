@@ -1,4 +1,3 @@
-import functools
 import typing
 from pathlib import Path
 from typing import Annotated, Any
@@ -104,8 +103,20 @@ def train(
     ] = 0.001,
     logging_steps: Annotated[
         int,
-        typer.Option(..., help="The number of logging steps"),
+        typer.Option(..., help="The Number of update steps between two logs"),
     ] = 1,
+    save_steps: Annotated[
+        float,
+        typer.Option(
+            ...,
+            help="The number of steps between saving model checkpoints. If smaller "
+            "than 1, will be interpreted as ratio of total training steps.",
+        ),
+    ] = 0.1,
+    save_total_limit: Annotated[
+        int,
+        typer.Option(..., help="The maximum number of checkpoints to keep"),
+    ] = 5,
     push_to_hub: Annotated[
         bool,
         typer.Option(..., help="Whether to push the trained model to the HF Hub"),
@@ -125,6 +136,20 @@ def train(
         int,
         typer.Option(..., help="The maximum sequence length for the model"),
     ] = 8192,
+    preprocess_num_proc: Annotated[
+        int,
+        typer.Option(
+            ...,
+            help="The number of processes to use for dataset preprocessing (map). "
+            "If 0, no multiprocessing is used.",
+        ),
+    ] = 0,
+    preprocess_writer_batch_size: Annotated[
+        int,
+        typer.Option(
+            ..., help="The writer batch size to use for dataset preprocessing (map)"
+        ),
+    ] = 1_000,
 ):
     from unsloth import FastVisionModel  # isort:skip
     from unsloth.trainer import UnslothVisionDataCollator  # isort:skip
@@ -179,10 +204,11 @@ def train(
     converted_train_dataset = typing.cast(
         Dataset,
         train_ds.map(
-            functools.partial(
-                convert_to_conversation, instructions=full_instructions, train=True
-            ),
+            convert_to_conversation,
+            fn_kwargs={"instructions": full_instructions, "train": True},
             remove_columns=["image", "output"],
+            num_proc=preprocess_num_proc,
+            writer_batch_size=preprocess_writer_batch_size,
         ),
     )
 
@@ -213,6 +239,11 @@ def train(
             lr_scheduler_type="linear",
             output_dir="outputs",
             report_to="wandb",
+            save_steps=save_steps,
+            save_total_limit=save_total_limit,
+            save_only_model=True,
+            push_to_hub=push_to_hub,
+            hub_model_id=output_repo_id,
             # The following fields are required for vision finetuning
             remove_unused_columns=False,
             dataset_text_field="",
@@ -223,9 +254,6 @@ def train(
 
     if train:
         trainer.train()
-
-    if push_to_hub:
-        model.push_to_hub(output_repo_id)
 
 
 @app.command()
@@ -287,18 +315,19 @@ def validate(
     converted_val_dataset = typing.cast(
         Dataset,
         val_ds.map(
-            functools.partial(
-                convert_to_conversation,
-                instructions=full_instructions,
-                train=False,
-                image_max_size=image_max_size,
-            ),
+            convert_to_conversation,
+            fn_kwargs={
+                "instructions": full_instructions,
+                "train": False,
+                "image_max_size": image_max_size,
+            },
             remove_columns=["image", "output"],
         ),
     )
 
     typer.echo("Downloading LoRA weights...")
     lora_checkpoint_path = snapshot_download(repo_id=lora_repo_id, repo_type="model")
+    typer.echo("LoRA weights downloaded to %s" % lora_checkpoint_path)
     run_on_validation_set(
         base_model=base_model,
         val_ds=converted_val_dataset,
