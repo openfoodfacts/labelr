@@ -7,11 +7,46 @@ import typer
 from google.genai.types import JSONSchema as GoogleJSONSchema
 from google.genai.types import Schema as GoogleSchema
 from openfoodfacts import Flavor
+from openfoodfacts.types import JSONType
 from pydantic import BaseModel
 
 from labelr.google_genai import generate_batch_dataset, launch_batch_job
 
 app = typer.Typer()
+
+
+def _check_json_schema(item: JSONType) -> None:
+    if item.get("type") == "object":
+        required_fields = item.get("required", [])
+        all_fields = item.get("properties", [])
+        diff = set(all_fields) - set(required_fields)
+        if diff:
+            raise ValueError(
+                f"fields '{diff}' must be marked as required in the JSONSchema. "
+                "All fields with type 'object' must be required."
+            )
+    return None
+
+
+def check_json_schema(json_schema: JSONType) -> None:
+    """Check that for all `object`s, all fields are marked as required.
+
+    This is important to check, as otherwise the structured generation
+    backend may prevent the model to generate these fields.
+    This is the case as of vLLM 0.13 and xgrammars as backend.
+
+    To prevent this, we ask all fields to be marked as required.
+    """
+    stack = [json_schema]
+
+    for def_item in json_schema.get("$defs", {}).values():
+        stack.append(def_item)
+
+    while stack:
+        item = stack.pop()
+        _check_json_schema(item)
+        for sub_item in item.get("properties", {}).values():
+            stack.append(sub_item)
 
 
 def convert_pydantic_model_to_google_schema(schema: type[BaseModel]) -> dict[str, Any]:
@@ -259,6 +294,9 @@ def upload_training_dataset_from_predictions(
     instructions = instructions_path.read_text()
     print(f"Instructions: {instructions}")
     json_schema = orjson.loads(json_schema_path.read_text())
+
+    # We check that all fields are marked as required
+    check_json_schema(json_schema)
 
     api = HfApi()
     config = {
