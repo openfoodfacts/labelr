@@ -48,12 +48,15 @@ def train(
     ] = 16,
     lora_alpha: Annotated[
         int,
-        typer.Option(..., help="The LoRA alpha to use for fine-tuning"),
+        typer.Option(
+            ...,
+            help="The LoRA alpha to use for fine-tuning. It is usually set to lora_r or lora_r * 2.",
+        ),
     ] = 16,
     lora_dropout: Annotated[
         float,
         typer.Option(..., help="The LoRA dropout to use for fine-tuning"),
-    ] = 0.0,
+    ] = 0.05,
     use_rslora: Annotated[
         bool,
         typer.Option(..., help="Whether to use Rank Stabilized LoRA"),
@@ -66,10 +69,13 @@ def train(
         int,
         typer.Option(..., help="The number of gradient accumulation steps"),
     ] = 4,
-    warmup_steps: Annotated[
-        int,
-        typer.Option(..., help="The number of warmup steps"),
-    ] = 5,
+    warmup_ratio: Annotated[
+        float,
+        typer.Option(
+            ...,
+            help="The ratio of steps used for a linear warmup from 0 to learning_rate.",
+        ),
+    ] = 0.05,
     learning_rate: Annotated[
         float,
         typer.Option(..., help="The learning rate"),
@@ -100,7 +106,7 @@ def train(
     weight_decay: Annotated[
         float,
         typer.Option(..., help="The weight decay to use"),
-    ] = 0.001,
+    ] = 0.01,
     logging_steps: Annotated[
         int,
         typer.Option(..., help="The Number of update steps between two logs"),
@@ -154,12 +160,13 @@ def train(
     from unsloth import FastVisionModel  # isort:skip
     from unsloth.trainer import UnslothVisionDataCollator  # isort:skip
     from datasets import Dataset, load_dataset
+    from trl import SFTConfig, SFTTrainer
+
     from train_unsloth.common import (
         convert_to_conversation,
         get_config,
         get_full_instructions,
     )
-    from trl import SFTConfig, SFTTrainer
 
     model, processor = FastVisionModel.from_pretrained(
         base_model,
@@ -229,7 +236,7 @@ def train(
         args=SFTConfig(
             per_device_train_batch_size=per_device_train_batch_size,
             gradient_accumulation_steps=gradient_accumulation_steps,
-            warmup_steps=warmup_steps,
+            warmup_ratio=warmup_ratio,
             num_train_epochs=num_train_epochs,
             max_steps=max_steps,
             learning_rate=learning_rate,
@@ -291,6 +298,7 @@ def validate(
 ):
     from datasets import Dataset, load_dataset
     from huggingface_hub import snapshot_download, upload_file
+
     from train_unsloth.common import (
         convert_to_conversation,
         get_config,
