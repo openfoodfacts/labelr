@@ -22,6 +22,7 @@ def run_on_validation_set(
     json_schema: JSONType,
     max_seq_length: int,
     batch_size: int = 4,
+    enforce_schema: bool = True,
 ) -> None:
     """Run the model on the validation set and save the outputs to a JSONL
     file.
@@ -40,6 +41,8 @@ def run_on_validation_set(
         max_seq_length (int): The maximum sequence length for the model.
         batch_size (int, optional): The batch size to use for inference.
             Defaults to 4.
+        enforce_schema (bool, optional): Whether to enforce the JSON schema
+            during inference. Defaults to True.
     """
     llm = LLM(
         model=base_model,
@@ -53,9 +56,13 @@ def run_on_validation_set(
         max_model_len=max_seq_length,
     )
 
-    # We guide the model to produce structured JSON outputs using the provided
-    # JSON schema.
-    structured_outputs_params = StructuredOutputsParams(json=json_schema)
+    if enforce_schema:
+        # We guide the model to produce structured JSON outputs using the
+        # provided JSON schema.
+        structured_outputs_params = StructuredOutputsParams(json=json_schema)
+    else:
+        structured_outputs_params = None
+
     sampling_params = SamplingParams(
         structured_outputs=structured_outputs_params, max_tokens=8192
     )

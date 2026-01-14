@@ -295,7 +295,26 @@ def validate(
         int,
         typer.Option(..., help="The maximum sequence length for the model"),
     ] = 8192,
+    enforce_schema: Annotated[
+        bool,
+        typer.Option(..., help="Whether to enforce the JSON schema during validation"),
+    ] = True,
+    upload_to_hub: Annotated[
+        bool, typer.Option(..., help="Whether to upload the output file to the Hub")
+    ] = True,
+    json_schema_path: Annotated[
+        Path | None,
+        typer.Option(
+            ...,
+            help="Path to the JSON schema to use. If not provided, the JSON schema "
+            "registered in the model `config.json` file will be used.",
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+        ),
+    ] = None,
 ):
+    import orjson
     from datasets import Dataset, load_dataset
     from huggingface_hub import snapshot_download, upload_file
 
@@ -314,7 +333,13 @@ def validate(
     )
     ds_config = get_config(ds_repo_id=ds_repo_id)
     instructions = ds_config["instructions"]
-    json_schema = ds_config["json_schema"]
+
+    if json_schema_path is None:
+        json_schema = ds_config["json_schema"]
+    else:
+        typer.echo(f"Using provided JSON schema from {json_schema_path}")
+        json_schema = orjson.loads(json_schema_path.read_text())
+
     full_instructions = get_full_instructions(instructions, json_schema)
 
     converted_val_dataset = typing.cast(
@@ -341,16 +366,18 @@ def validate(
         json_schema=json_schema,
         batch_size=batch_size,
         max_seq_length=max_seq_length,
+        enforce_schema=enforce_schema,
     )
 
-    typer.echo("Uploading validation outputs to the Hub...")
-    # Upload the validation outputs to the Hub
-    upload_file(
-        path_or_fileobj=output_path,
-        path_in_repo="validation_output.jsonl",
-        repo_id=lora_repo_id,
-        repo_type="model",
-    )
+    if upload_to_hub:
+        typer.echo("Uploading validation outputs to the Hub...")
+        # Upload the validation outputs to the Hub
+        upload_file(
+            path_or_fileobj=output_path,
+            path_in_repo="validation_output.jsonl",
+            repo_id=lora_repo_id,
+            repo_type="model",
+        )
 
 
 if __name__ == "__main__":
