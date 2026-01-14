@@ -310,10 +310,7 @@ def validate(
 
     val_ds = typing.cast(
         Dataset,
-        load_dataset(
-            ds_repo_id,
-            columns=["image", "output", "image_id"],
-        )["val"],
+        load_dataset(ds_repo_id, columns=["image", "output", "image_id"], split="val"),
     )
     ds_config = get_config(ds_repo_id=ds_repo_id)
     instructions = ds_config["instructions"]
