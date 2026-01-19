@@ -27,7 +27,23 @@ def export_from_ls_to_hf_object_detection(
     merge_labels: bool = False,
     use_aws_cache: bool = True,
     revision: str = "main",
-):
+) -> None:
+    """Export annotations from a Label Studio project to a Hugging Face
+    dataset.
+
+    The Label Studio project should be an object detection project.
+
+    Args:
+        ls (LabelStudio): Label Studio client instance.
+        repo_id (str): Hugging Face repository ID to push the dataset to.
+        label_names (list[str]): List of label names in the project.
+        project_id (int): Label Studio project ID to export from.
+        merge_labels (bool): Whether to merge all labels into a single label
+            named "object". Defaults to False.
+        use_aws_cache (bool): Whether to use the AWS image cache when
+            downloading images. Defaults to True.
+        revision (str): The dataset revision to push to. Defaults to 'main'.
+    """
     if merge_labels:
         label_names = ["object"]
 
