@@ -165,8 +165,11 @@ def add_split(
 
         split = task.data.get("split")
         if split is None or overwrite:
-            if task_ids and str(task_id) in task_ids:
-                split = split_name
+            if task_ids:
+                if str(task_id) in task_ids:
+                    split = split_name
+                else:
+                    continue
             else:
                 split = (
                     train_split_name
