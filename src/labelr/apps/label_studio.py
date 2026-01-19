@@ -116,6 +116,13 @@ def add_split(
     overwrite: Annotated[
         bool, typer.Option(help="overwrite existing split field")
     ] = False,
+    view_id: Annotated[
+        int | None,
+        typer.Option(
+            help="ID of the Label Studio view, if any. This option is useful "
+            "to filter the task to process."
+        ),
+    ] = None,
     label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
 ):
     """Update the split field of tasks in a Label Studio project.
@@ -133,6 +140,9 @@ def add_split(
 
     In both cases, tasks with a non-null split field are not updated unless
     the `--overwrite` flag is provided.
+
+    The `--view-id` option can be used to only assign the split on a subset
+    of the tasks.
     """
     import random
 
@@ -149,7 +159,7 @@ def add_split(
             )
         task_ids = task_id_file.read_text().strip().split("\n")
 
-    for task in ls.tasks.list(project=project_id, fields="all"):
+    for task in ls.tasks.list(project=project_id, fields="all", view=view_id):
         task: Task
         task_id = task.id
 
