@@ -488,3 +488,39 @@ def delete_user(
 
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
     ls.users.delete(user_id)
+
+
+@app.command()
+def dump_dataset(
+    project_id: Annotated[int, typer.Option(help="Label Studio Project ID")],
+    api_key: Annotated[str, typer.Option(envvar="LABEL_STUDIO_API_KEY")],
+    output_file: Annotated[
+        Path, typer.Option(help="Path of the output file", writable=True)
+    ],
+    view_id: Annotated[
+        int | None,
+        typer.Option(
+            help="ID of the Label Studio view, if any. This option is useful "
+            "to filter the tasks to dump."
+        ),
+    ] = None,
+    label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
+):
+    """Dump all the tasks of a dataset in a JSONL file.
+
+    All fields of the tasks are exported. A subset of the tasks can be
+    selected by filtering tasks based on a view (=tab) using the `--view-id`
+    option.
+    """
+    import orjson
+    import tqdm
+    from label_studio_sdk.client import LabelStudio
+
+    ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
+
+    with output_file.open("wb") as f:
+        for task in tqdm.tqdm(
+            ls.tasks.list(project=project_id, view=view_id), desc="tasks"
+        ):
+            content = orjson.dumps(task.dict())
+            f.write(content + b"\n")
