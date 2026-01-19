@@ -184,7 +184,8 @@ def format_object_detection_sample_to_hf(
 
     for annotation_result in annotation["result"]:
         if annotation_result["type"] != "rectanglelabels":
-            raise ValueError("Invalid annotation type: %s" % annotation_result["type"])
+            continue
+            # raise ValueError("Invalid annotation type: %s" % annotation_result["type"])
 
         value = annotation_result["value"]
         x_min = value["x"] / 100
@@ -212,14 +213,19 @@ def format_object_detection_sample_to_hf(
     # Indeed, Hugging Face stores images without applying EXIF rotation, and
     # EXIF data is not preserved in the dataset.
     ImageOps.exif_transpose(typing.cast(PIL.Image.Image, image), in_place=True)
+    meta = task_data.get("meta", {})
+    barcode = meta.get("barcode", None)
+    off_image_id = meta.get("off_image_id", None)
+    width = image.width
+    height = image.height
     return {
         "image_id": task_data["image_id"],
         "image": image,
-        "width": task_data["meta"]["width"],
-        "height": task_data["meta"]["height"],
+        "width": width,
+        "height": height,
         "meta": {
-            "barcode": task_data["meta"]["barcode"],
-            "off_image_id": task_data["meta"]["off_image_id"],
+            "barcode": barcode,
+            "off_image_id": off_image_id,
             "image_url": image_url,
         },
         "objects": {

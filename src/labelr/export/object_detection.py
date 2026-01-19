@@ -24,6 +24,7 @@ def export_from_ls_to_hf_object_detection(
     repo_id: str,
     label_names: list[str],
     project_id: int,
+    view_id: int | None = None,
     merge_labels: bool = False,
     use_aws_cache: bool = True,
     revision: str = "main",
@@ -38,6 +39,8 @@ def export_from_ls_to_hf_object_detection(
         repo_id (str): Hugging Face repository ID to push the dataset to.
         label_names (list[str]): List of label names in the project.
         project_id (int): Label Studio project ID to export from.
+        view_id (int | None): Label Studio view ID to export from. If None,
+            all tasks are exported. Defaults to None.
         merge_labels (bool): Whether to merge all labels into a single label
             named "object". Defaults to False.
         use_aws_cache (bool): Whether to use the AWS image cache when
@@ -48,11 +51,12 @@ def export_from_ls_to_hf_object_detection(
         label_names = ["object"]
 
     logger.info(
-        "Project ID: %d, label names: %s, repo_id: %s, revision: %s",
+        "Project ID: %d, label names: %s, repo_id: %s, revision: %s, view ID: %s",
         project_id,
         label_names,
         repo_id,
         revision,
+        view_id,
     )
 
     for split in ["train", "val"]:
@@ -62,7 +66,9 @@ def export_from_ls_to_hf_object_detection(
             tmp_dir = Path(tmp_dir_str)
             logger.info("Saving samples to temporary directory: %s", tmp_dir)
             for i, task in tqdm.tqdm(
-                enumerate(ls.tasks.list(project=project_id, fields="all")),
+                enumerate(
+                    ls.tasks.list(project=project_id, fields="all", view=view_id)
+                ),
                 desc="tasks",
             ):
                 if task.data["split"] != split:
@@ -95,6 +101,7 @@ def export_from_ls_to_ultralytics_object_detection(
     error_raise: bool = True,
     merge_labels: bool = False,
     use_aws_cache: bool = True,
+    view_id: int | None = None,
 ):
     """Export annotations from a Label Studio project to the Ultralytics
     format.
@@ -118,7 +125,7 @@ def export_from_ls_to_ultralytics_object_detection(
         (images_dir / split).mkdir(parents=True, exist_ok=True)
 
     for task in tqdm.tqdm(
-        ls.tasks.list(project=project_id, fields="all"),
+        ls.tasks.list(project=project_id, fields="all", view=view_id),
         desc="tasks",
     ):
         split = task.data.get("split")

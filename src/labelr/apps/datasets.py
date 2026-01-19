@@ -142,6 +142,13 @@ def export(
     project_id: Annotated[
         Optional[int], typer.Option(help="Label Studio Project ID")
     ] = None,
+    view_id: Annotated[
+        int | None,
+        typer.Option(
+            help="ID of the Label Studio view, if any. This option is useful "
+            "to filter the task to export."
+        ),
+    ] = None,
     label_studio_url: Optional[str] = LABEL_STUDIO_DEFAULT_URL,
     output_dir: Annotated[
         Optional[Path],
@@ -263,6 +270,7 @@ def export(
                 merge_labels=merge_labels,
                 use_aws_cache=use_aws_cache,
                 revision=revision,
+                view_id=view_id,
             )
         elif to == ExportDestination.ultralytics:
             export_from_ls_to_ultralytics_object_detection(
@@ -274,6 +282,7 @@ def export(
                 error_raise=error_raise,
                 merge_labels=merge_labels,
                 use_aws_cache=use_aws_cache,
+                view_id=view_id,
             )
 
     elif from_ == ExportSource.hf:
