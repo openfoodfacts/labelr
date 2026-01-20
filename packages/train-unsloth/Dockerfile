@@ -15,7 +15,8 @@ ENV PYTHONUNBUFFERED=1 \
     # Ensure installed tools can be executed out of the box
     UV_TOOL_BIN_DIR=/usr/local/bin \
     # Ensure uv uses the system's python3
-    PATH="/usr/local/bin:$PATH"
+    PATH="/usr/local/bin:$PATH" \
+    UV_PYTHON=3.12
 
 WORKDIR /app
 
@@ -33,8 +34,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev
 
 # Set the environment path for the virtual environment
-ENV PATH="/app/.venv/bin:$PATH" \
-    YOLO_CONFIG_DIR="/app"
+ENV PATH="/app/.venv/bin:$PATH"
 
 ENTRYPOINT []
 
