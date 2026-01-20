@@ -3,12 +3,14 @@ import logging
 import pickle
 import random
 import tempfile
+import typing
 from pathlib import Path
 
 import datasets
 import tqdm
 from label_studio_sdk.client import LabelStudio
 from openfoodfacts.images import download_image
+from PIL import Image, ImageOps
 
 from labelr.export.common import _pickle_sample_generator
 from labelr.sample.object_detection import (
@@ -25,6 +27,7 @@ def export_from_ls_to_hf_object_detection(
     label_names: list[str],
     project_id: int,
     is_openfoodfacts_dataset: bool,
+    image_max_size: int | None = None,
     view_id: int | None = None,
     merge_labels: bool = False,
     use_aws_cache: bool = True,
@@ -44,6 +47,8 @@ def export_from_ls_to_hf_object_detection(
             Facts dataset. If True, the dataset will include additional
             metadata fields specific to Open Food Facts (`barcode` and
             `off_image_id`).
+        image_max_size (int | None): Maximum size (in pixels) for the images.
+            If None, no resizing is performed. Defaults to None.
         view_id (int | None): Label Studio view ID to export from. If None,
             all tasks are exported. Defaults to None.
         merge_labels (bool): Whether to merge all labels into a single label
@@ -84,6 +89,7 @@ def export_from_ls_to_hf_object_detection(
                     label_names=label_names,
                     merge_labels=merge_labels,
                     use_aws_cache=use_aws_cache,
+                    image_max_size=image_max_size,
                 )
                 if sample is not None:
                     # Save output as pickle
@@ -108,12 +114,31 @@ def export_from_ls_to_ultralytics_object_detection(
     merge_labels: bool = False,
     use_aws_cache: bool = True,
     view_id: int | None = None,
+    image_max_size: int | None = None,
 ):
     """Export annotations from a Label Studio project to the Ultralytics
     format.
 
     The Label Studio project should be an object detection project with a
     single rectanglelabels annotation result per task.
+
+    Args:
+        ls (LabelStudio): Label Studio client instance.
+        output_dir (Path): Path to the output directory.
+        label_names (list[str]): List of label names in the project.
+        project_id (int): Label Studio project ID to export from.
+        train_ratio (float): Ratio of training samples. The rest will be used
+            for validation. Defaults to 0.8.
+        error_raise (bool): Whether to raise an error if an image fails to
+            download. If False, the image will be skipped. Defaults to True.
+        merge_labels (bool): Whether to merge all labels into a single label
+            named "object". Defaults to False.
+        use_aws_cache (bool): Whether to use the AWS image cache when
+            downloading images. Defaults to True.
+        view_id (int | None): Label Studio view ID to export from. If None,
+            all tasks are exported. Defaults to None.
+        image_max_size (int | None): Maximum size (in pixels) for the images.
+            If None, no resizing is performed. Defaults to None.
     """
     if merge_labels:
         label_names = ["object"]
@@ -209,18 +234,28 @@ def export_from_ls_to_ultralytics_object_detection(
                     has_valid_annotation = True
 
         if has_valid_annotation:
-            download_output = download_image(
+            image = download_image(
                 image_url,
-                return_struct=True,
+                return_struct=False,
                 error_raise=error_raise,
                 use_cache=use_aws_cache,
             )
-            if download_output is None:
+            if image is None:
                 logger.error("Failed to download image: %s", image_url)
                 continue
 
-            with (images_dir / split / f"{image_id}.jpg").open("wb") as f:
-                f.write(download_output.image_bytes)
+            image = typing.cast(Image.Image, image)
+
+            # Rotate image according to exif orientation using Pillow
+            ImageOps.exif_transpose(image, in_place=True)
+            # Resize image if larger than max size
+            if image_max_size is not None and (
+                image.width > image_max_size or image.height > image_max_size
+            ):
+                image.thumbnail(
+                    (image_max_size, image_max_size), Image.Resampling.LANCZOS
+                )
+            image.save(images_dir / split / f"{image_id}.jpg", format="JPEG")
 
     with (output_dir / "data.yaml").open("w") as f:
         f.write("path: data\n")
@@ -238,6 +273,7 @@ def export_from_hf_to_ultralytics_object_detection(
     download_images: bool = True,
     error_raise: bool = True,
     use_aws_cache: bool = True,
+    image_max_size: int | None = None,
     revision: str = "main",
 ):
     """Export annotations from a Hugging Face dataset project to the
@@ -258,6 +294,8 @@ def export_from_hf_to_ultralytics_object_detection(
         use_aws_cache (bool): Whether to use the AWS image cache when
             downloading images. This option is only used if `download_images`
             is True. Defaults to True.
+        image_max_size (int | None): Maximum size (in pixels) for the images.
+            If None, no resizing is performed. Defaults to None.
         revision (str): The dataset revision to load. Defaults to 'main'.
     """
     logger.info("Repo ID: %s, revision: %s", repo_id, revision)
@@ -293,21 +331,31 @@ def export_from_hf_to_ultralytics_object_detection(
                         "`download_images` to False."
                     )
                 image_url = sample["meta"]["image_url"]
-                download_output = download_image(
+                image = download_image(
                     image_url,
-                    return_struct=True,
+                    return_struct=False,
                     error_raise=error_raise,
                     use_cache=use_aws_cache,
                 )
-                if download_output is None:
+                if image is None:
                     logger.error("Failed to download image: %s", image_url)
                     continue
-
-                with (split_images_dir / f"{image_id}.jpg").open("wb") as f:
-                    f.write(download_output.image_bytes)
             else:
                 image = sample["image"]
-                image.save(split_images_dir / f"{image_id}.jpg")
+
+            image = typing.cast(Image.Image, image)
+            # Rotate image according to exif orientation using Pillow
+            # If the image source is Hugging Face, EXIF data is not preserved,
+            # so this step is only useful when downloading images.
+            ImageOps.exif_transpose(image, in_place=True)
+            # Resize image if larger than max size
+            if image_max_size is not None and (
+                image.width > image_max_size or image.height > image_max_size
+            ):
+                image.thumbnail(
+                    (image_max_size, image_max_size), Image.Resampling.LANCZOS
+                )
+            image.save(split_images_dir / f"{image_id}.jpg")
 
             objects = sample["objects"]
             bboxes = objects["bbox"]

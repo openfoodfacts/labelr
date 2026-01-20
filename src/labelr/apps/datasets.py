@@ -196,6 +196,14 @@ def export(
             "is Ultralytics."
         ),
     ] = 0.8,
+    image_max_size: Annotated[
+        int | None,
+        typer.Option(
+            help="Maximum size (in pixels) for the images. If None, no resizing is performed."
+            "Otherwise, the longest side of the image will be resized to this value, "
+            "keeping the aspect ratio."
+        ),
+    ] = None,
     error_raise: Annotated[
         bool,
         typer.Option(
@@ -277,6 +285,7 @@ def export(
                 use_aws_cache=use_aws_cache,
                 revision=revision,
                 view_id=view_id,
+                image_max_size=image_max_size,
             )
         elif to == ExportDestination.ultralytics:
             export_from_ls_to_ultralytics_object_detection(
@@ -289,6 +298,7 @@ def export(
                 merge_labels=merge_labels,
                 use_aws_cache=use_aws_cache,
                 view_id=view_id,
+                image_max_size=image_max_size,
             )
 
     elif from_ == ExportSource.hf:
@@ -304,6 +314,7 @@ def export(
                 error_raise=error_raise,
                 use_aws_cache=use_aws_cache,
                 revision=revision,
+                image_max_size=image_max_size,
             )
         else:
             raise typer.BadParameter("Unsupported export format")

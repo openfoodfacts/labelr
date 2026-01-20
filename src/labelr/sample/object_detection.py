@@ -8,7 +8,7 @@ import PIL
 from openfoodfacts import Flavor
 from openfoodfacts.barcode import normalize_barcode
 from openfoodfacts.images import download_image, generate_image_url
-from PIL import ImageOps
+from PIL import Image, ImageOps
 
 logger = logging.getLogger(__name__)
 
@@ -153,6 +153,7 @@ def format_object_detection_sample_to_hf(
     label_names: list[str],
     merge_labels: bool = False,
     use_aws_cache: bool = False,
+    image_max_size: int | None = None,
 ) -> dict | None:
     """Format a Label Studio object detection sample to Hugging Face format.
 
@@ -163,6 +164,8 @@ def format_object_detection_sample_to_hf(
         merge_labels: Whether to merge all labels into a single label (the
             first label in `label_names`).
         use_aws_cache: Whether to use AWS cache when downloading images.
+        image_max_size: Maximum size (in pixels) for the images.
+            If None, no resizing is performed. Defaults to None.
 
     Returns:
         The formatted sample, or None in the following cases:
@@ -206,13 +209,21 @@ def format_object_detection_sample_to_hf(
         logger.error("Failed to download image: %s", image_url)
         return None
 
+    image = typing.cast(Image.Image, image)
     # Correct image orientation using EXIF data
     # Label Studio provides bounding boxes based on the displayed image (after
     # eventual EXIF rotation), so we need to apply the same transformation to
     # the image.
     # Indeed, Hugging Face stores images without applying EXIF rotation, and
     # EXIF data is not preserved in the dataset.
-    ImageOps.exif_transpose(typing.cast(PIL.Image.Image, image), in_place=True)
+    ImageOps.exif_transpose(image, in_place=True)
+
+    # Resize image if larger than max size
+    if image_max_size is not None and (
+        image.width > image_max_size or image.height > image_max_size
+    ):
+        image.thumbnail((image_max_size, image_max_size), Image.Resampling.LANCZOS)
+
     meta = task_data.get("meta", {})
     barcode = meta.get("barcode", None)
     off_image_id = meta.get("off_image_id", None)
