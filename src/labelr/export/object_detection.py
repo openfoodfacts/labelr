@@ -12,8 +12,8 @@ from openfoodfacts.images import download_image
 
 from labelr.export.common import _pickle_sample_generator
 from labelr.sample.object_detection import (
-    HF_DS_OBJECT_DETECTION_FEATURES,
     format_object_detection_sample_to_hf,
+    get_hf_object_detection_features,
 )
 
 logger = logging.getLogger(__name__)
@@ -24,6 +24,7 @@ def export_from_ls_to_hf_object_detection(
     repo_id: str,
     label_names: list[str],
     project_id: int,
+    is_openfoodfacts_dataset: bool,
     view_id: int | None = None,
     merge_labels: bool = False,
     use_aws_cache: bool = True,
@@ -39,6 +40,10 @@ def export_from_ls_to_hf_object_detection(
         repo_id (str): Hugging Face repository ID to push the dataset to.
         label_names (list[str]): List of label names in the project.
         project_id (int): Label Studio project ID to export from.
+        is_openfoodfacts_dataset (bool): Whether the dataset is an Open Food
+            Facts dataset. If True, the dataset will include additional
+            metadata fields specific to Open Food Facts (`barcode` and
+            `off_image_id`).
         view_id (int | None): Label Studio view ID to export from. If None,
             all tasks are exported. Defaults to None.
         merge_labels (bool): Whether to merge all labels into a single label
@@ -85,9 +90,10 @@ def export_from_ls_to_hf_object_detection(
                     with open(tmp_dir / f"{split}_{i:05}.pkl", "wb") as f:
                         pickle.dump(sample, f)
 
+            features = get_hf_object_detection_features(is_openfoodfacts_dataset)
             hf_ds = datasets.Dataset.from_generator(
                 functools.partial(_pickle_sample_generator, tmp_dir),
-                features=HF_DS_OBJECT_DETECTION_FEATURES,
+                features=features,
             )
             hf_ds.push_to_hub(repo_id, split=split, revision=revision)
 

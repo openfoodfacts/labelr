@@ -170,11 +170,15 @@ def export(
     is_openfoodfacts_dataset: Annotated[
         bool,
         typer.Option(
-            help="Whether the Ultralytics dataset is an OpenFoodFacts dataset, only "
-            "for Ultralytics source. This is used to generate the correct image URLs "
-            "each image name."
+            help="Whether the Ultralytics dataset is an Open Food Facts dataset, only "
+            "for Ultralytics source. This is used:\n"
+            "- to generate the correct image URLs from each image name, when exporting "
+            "from Ultralytics to Hugging Face Datasets.\n"
+            "- to include additional metadata fields specific to Open Food Facts "
+            "(`barcode` and `off_image_id`) when exporting from Label Studio to "
+            "Hugging Face Datasets."
         ),
-    ] = True,
+    ] = False,
     openfoodfacts_flavor: Annotated[
         Flavor,
         typer.Option(
@@ -188,7 +192,8 @@ def export(
         float,
         typer.Option(
             help="Train ratio for splitting the dataset, if the split name is not "
-            "provided (typically, if the source is Label Studio)"
+            "provided. Only used if the source is Label Studio and the destination "
+            "is Ultralytics."
         ),
     ] = 0.8,
     error_raise: Annotated[
@@ -267,6 +272,7 @@ def export(
                 repo_id=repo_id,
                 label_names=typing.cast(list[str], label_names_list),
                 project_id=typing.cast(int, project_id),
+                is_openfoodfacts_dataset=is_openfoodfacts_dataset,
                 merge_labels=merge_labels,
                 use_aws_cache=use_aws_cache,
                 revision=revision,

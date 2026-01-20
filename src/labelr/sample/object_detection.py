@@ -236,16 +236,23 @@ def format_object_detection_sample_to_hf(
     }
 
 
-# The HuggingFace Dataset features
-HF_DS_OBJECT_DETECTION_FEATURES = datasets.Features(
-    {
+def get_hf_object_detection_features(
+    is_openfoodfacts_dataset: bool,
+) -> datasets.Features:
+    """Get the HuggingFace Dataset features for object detection.
+
+    Args:
+        is_openfoodfacts_dataset (bool): Whether the dataset is an Open Food
+            Facts dataset. If True, the dataset will include additional
+            metadata fields specific to Open Food Facts (`barcode` and
+            `off_image_id`).
+    """
+    features_dict = {
         "image_id": datasets.Value("string"),
         "image": datasets.features.Image(),
         "width": datasets.Value("int64"),
         "height": datasets.Value("int64"),
         "meta": {
-            "barcode": datasets.Value("string"),
-            "off_image_id": datasets.Value("string"),
             "image_url": datasets.Value("string"),
         },
         "objects": {
@@ -254,4 +261,9 @@ HF_DS_OBJECT_DETECTION_FEATURES = datasets.Features(
             "category_name": datasets.Sequence(datasets.Value("string")),
         },
     }
-)
+
+    if is_openfoodfacts_dataset:
+        features_dict["meta"]["barcode"] = datasets.Value("string")
+        features_dict["meta"]["off_image_id"] = datasets.Value("string")
+
+    return datasets.Features(features_dict)
