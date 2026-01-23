@@ -353,7 +353,8 @@ def export_llm_ds(
     tmp_dir: Annotated[
         Path | None,
         typer.Option(
-            help="Path to a temporary directory to use for image processing",
+            help="Path to the temporary directory used to store intermediate sample files "
+            "created when building the HF dataset.",
         ),
     ] = None,
     image_max_size: Annotated[
@@ -380,3 +381,102 @@ def export_llm_ds(
         tmp_dir=tmp_dir,
         image_max_size=image_max_size,
     )
+
+
+@app.command()
+def update_llm_ds(
+    dataset_path: Annotated[
+        Path, typer.Option(help="Path to the JSONL containing the updates.")
+    ],
+    repo_id: Annotated[
+        str, typer.Option(help="Hugging Face Datasets repository ID to update")
+    ],
+    split: Annotated[str, typer.Option(help="Dataset split to use")],
+    revision: Annotated[
+        str,
+        typer.Option(
+            help="Revision (branch, tag or commit) to use when pushing the new version "
+            "of the Hugging Face Dataset."
+        ),
+    ] = "main",
+    tmp_dir: Annotated[
+        Path | None,
+        typer.Option(
+            help="Path to a temporary directory to use for image processing",
+        ),
+    ] = None,
+    show_diff: Annotated[
+        bool,
+        typer.Option(
+            help="Show the differences between the original sample and the update. If "
+            "True, the updated dataset is not pushed to the Hub. Useful to review the "
+            "updates before applying them.",
+        ),
+    ] = False,
+):
+    """Update an existing LLM image extraction dataset, by updating the
+    `output` field of each sample in the dataset.
+
+    The `--dataset_path` JSONL file should contain items with two fields:
+
+    - `image_id`: The image ID of the sample to update in the Hugging Face
+        dataset.
+    - `output`: The new output data to set for the sample.
+    """
+    import sys
+    from difflib import Differ
+
+    import orjson
+    from datasets import load_dataset
+    from diskcache import Cache
+
+    dataset = load_dataset(repo_id, split=split)
+
+    # Populate cache with the updates
+    cache = Cache(directory=tmp_dir or None)
+    with dataset_path.open("r") as f:
+        for line in map(orjson.loads, f):
+            if "image_id" not in line or "output" not in line:
+                raise ValueError(
+                    "Each item in the update JSONL file must contain `image_id` and `output` fields"
+                )
+            image_id = line["image_id"]
+            output = line["output"]
+
+            if not isinstance(output, str):
+                output = orjson.dumps(output).decode("utf-8")
+
+            cache[image_id] = output
+
+    def apply_updates(sample):
+        image_id = sample["image_id"]
+        if image_id in cache:
+            cached_item = cache[image_id]
+            sample["output"] = cached_item
+        return sample
+
+    if show_diff:
+        differ = Differ()
+        for sample in dataset:
+            image_id = sample["image_id"]
+            if image_id in cache:
+                cached_item = orjson.loads(cache[image_id])
+                original_item = orjson.loads(sample["output"])
+                cached_item_str = orjson.dumps(
+                    cached_item, option=orjson.OPT_INDENT_2
+                ).decode("utf8")
+                original_item_str = orjson.dumps(
+                    original_item, option=orjson.OPT_INDENT_2
+                ).decode("utf8")
+                diff = list(
+                    differ.compare(
+                        original_item_str.splitlines(keepends=True),
+                        cached_item_str.splitlines(keepends=True),
+                    )
+                )
+                sys.stdout.writelines(diff)
+                sys.stdout.write("\n" + "-" * 30 + "\n")
+
+    else:
+        updated_dataset = dataset.map(apply_updates, batched=False)
+        updated_dataset.push_to_hub(repo_id, split=split, revision=revision)
