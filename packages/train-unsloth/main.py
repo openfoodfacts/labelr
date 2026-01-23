@@ -55,8 +55,12 @@ def train(
     ] = 16,
     lora_dropout: Annotated[
         float,
-        typer.Option(..., help="The LoRA dropout to use for fine-tuning"),
-    ] = 0.05,
+        typer.Option(
+            ...,
+            help="The LoRA dropout to use for fine-tuning. Defaults to 0.0, as training is optimized "
+            "by Unsloth for this value.",
+        ),
+    ] = 0.0,
     use_rslora: Annotated[
         bool,
         typer.Option(..., help="Whether to use Rank Stabilized LoRA"),
