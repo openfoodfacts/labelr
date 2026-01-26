@@ -317,6 +317,14 @@ def validate(
             readable=True,
         ),
     ] = None,
+    max_lora_rank: Annotated[
+        int,
+        typer.Option(
+            ...,
+            help="The maximum LoRA rank to use. Must be the same as used "
+            "during training",
+        ),
+    ] = 16,
 ):
     import orjson
     from datasets import Dataset, load_dataset
@@ -371,6 +379,7 @@ def validate(
         batch_size=batch_size,
         max_seq_length=max_seq_length,
         enforce_schema=enforce_schema,
+        max_lora_rank=max_lora_rank,
     )
 
     if upload_to_hub:

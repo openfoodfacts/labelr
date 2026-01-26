@@ -23,6 +23,7 @@ def run_on_validation_set(
     max_seq_length: int,
     batch_size: int = 4,
     enforce_schema: bool = True,
+    max_lora_rank: int = 16,
 ) -> None:
     """Run the model on the validation set and save the outputs to a JSONL
     file.
@@ -43,6 +44,8 @@ def run_on_validation_set(
             Defaults to 4.
         enforce_schema (bool, optional): Whether to enforce the JSON schema
             during inference. Defaults to True.
+        max_lora_rank (int, optional): The maximum LoRA rank to use. Defaults
+            to 16.
     """
     llm = LLM(
         model=base_model,
@@ -54,6 +57,7 @@ def run_on_validation_set(
         # multimodal caching
         mm_processor_cache_gb=0,
         max_model_len=max_seq_length,
+        max_lora_rank=max_lora_rank,
     )
 
     if enforce_schema:
