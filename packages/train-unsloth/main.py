@@ -11,145 +11,136 @@ app = typer.Typer(pretty_exceptions_enable=False)
 
 @app.command()
 def train(
-    ds_repo_id: Annotated[str, typer.Option(..., help="The HF dataset repo ID")],
+    ds_repo_id: Annotated[str, typer.Option(help="The HF dataset repo ID")],
     output_repo_id: Annotated[
-        str, typer.Option(..., help="The HF repo ID to push the trained model to")
+        str, typer.Option(help="The HF repo ID to push the trained model to")
     ],
     base_model: Annotated[
         str,
         typer.Option(
-            ...,
             help="The base model to fine-tune. This must be a Unsloth 4-bit model.",
         ),
     ] = "unsloth/Qwen3-VL-8B-Instruct-unsloth-bnb-4bit",
     finetune_vision_layers: Annotated[
         bool,
         typer.Option(
-            ...,
             help="Whether to finetune the vision layers of the model. Defaults to False, "
             "as vLLM currently doesn't support LoRA adapters added to vision layers (as of v0.13).",
         ),
     ] = False,
     finetune_language_layers: Annotated[
         bool,
-        typer.Option(..., help="Whether to finetune the language layers of the model"),
+        typer.Option(help="Whether to finetune the language layers of the model"),
     ] = True,
     finetune_attention_layers: Annotated[
         bool,
-        typer.Option(..., help="Whether to finetune the attention layers of the model"),
+        typer.Option(help="Whether to finetune the attention layers of the model"),
     ] = True,
     finetune_mlp_layers: Annotated[
         bool,
-        typer.Option(..., help="Whether to finetune the MLP layers of the model"),
+        typer.Option(help="Whether to finetune the MLP layers of the model"),
     ] = True,
     lora_r: Annotated[
         int,
-        typer.Option(..., help="The LoRA rank to use for fine-tuning"),
+        typer.Option(help="The LoRA rank to use for fine-tuning"),
     ] = 16,
     lora_alpha: Annotated[
         int,
         typer.Option(
-            ...,
             help="The LoRA alpha to use for fine-tuning. It is usually set to lora_r or lora_r * 2.",
         ),
     ] = 16,
     lora_dropout: Annotated[
         float,
         typer.Option(
-            ...,
             help="The LoRA dropout to use for fine-tuning. Defaults to 0.0, as training is optimized "
             "by Unsloth for this value.",
         ),
     ] = 0.0,
     use_rslora: Annotated[
         bool,
-        typer.Option(..., help="Whether to use Rank Stabilized LoRA"),
+        typer.Option(help="Whether to use Rank Stabilized LoRA"),
     ] = False,
     per_device_train_batch_size: Annotated[
         int,
-        typer.Option(..., help="The per-device training batch size"),
+        typer.Option(help="The per-device training batch size"),
     ] = 8,
     gradient_accumulation_steps: Annotated[
         int,
-        typer.Option(..., help="The number of gradient accumulation steps"),
+        typer.Option(help="The number of gradient accumulation steps"),
     ] = 4,
     warmup_ratio: Annotated[
         float,
         typer.Option(
-            ...,
             help="The ratio of steps used for a linear warmup from 0 to learning_rate.",
         ),
     ] = 0.05,
     learning_rate: Annotated[
         float,
-        typer.Option(..., help="The learning rate"),
+        typer.Option(help="The learning rate"),
     ] = 2e-4,
     num_train_epochs: Annotated[
         int,
-        typer.Option(..., help="The number of training epochs"),
+        typer.Option(help="The number of training epochs"),
     ] = 1,
     max_steps: Annotated[
         int,
-        typer.Option(..., help="The maximum number of training steps. Ignored if -1"),
+        typer.Option(help="The maximum number of training steps. Ignored if -1"),
     ] = -1,
     max_samples: Annotated[
         int | None,
         typer.Option(
-            ...,
             help="The maximum number of samples to use from the dataset. If None, use all samples",
         ),
     ] = None,
     shuffle_dataset: Annotated[
         bool,
-        typer.Option(..., help="Whether to shuffle the train dataset"),
+        typer.Option(help="Whether to shuffle the train dataset"),
     ] = False,
     optim: Annotated[
         str,
-        typer.Option(..., help="The optimizer to use"),
+        typer.Option(help="The optimizer to use"),
     ] = "adamw_8bit",
     weight_decay: Annotated[
         float,
-        typer.Option(..., help="The weight decay to use"),
+        typer.Option(help="The weight decay to use"),
     ] = 0.01,
     logging_steps: Annotated[
         int,
-        typer.Option(..., help="The Number of update steps between two logs"),
+        typer.Option(help="The Number of update steps between two logs"),
     ] = 1,
     save_steps: Annotated[
         float,
         typer.Option(
-            ...,
             help="The number of steps between saving model checkpoints. If smaller "
             "than 1, will be interpreted as ratio of total training steps.",
         ),
     ] = 0.1,
     save_total_limit: Annotated[
         int,
-        typer.Option(..., help="The maximum number of checkpoints to keep"),
+        typer.Option(help="The maximum number of checkpoints to keep"),
     ] = 5,
     push_to_hub: Annotated[
         bool,
-        typer.Option(..., help="Whether to push the trained model to the HF Hub"),
+        typer.Option(help="Whether to push the trained model to the HF Hub"),
     ] = True,
     train: Annotated[
         bool,
-        typer.Option(..., help="Whether to run training"),
+        typer.Option(help="Whether to run training"),
     ] = True,
     image_max_size: Annotated[
         int,
         typer.Option(
-            ...,
             help="The maximum size (height or width) of the images after resizing",
         ),
     ] = 1024,
     max_seq_length: Annotated[
         int,
-        typer.Option(..., help="The maximum sequence length for the model"),
+        typer.Option(help="The maximum sequence length for the model"),
     ] = 8192,
     preprocess_num_proc: Annotated[
         int,
         typer.Option(
-            ...,
             help="The number of processes to use for dataset preprocessing (map). "
             "If 0, no multiprocessing is used.",
         ),
@@ -157,7 +148,7 @@ def train(
     preprocess_writer_batch_size: Annotated[
         int,
         typer.Option(
-            ..., help="The writer batch size to use for dataset preprocessing (map)"
+            help="The writer batch size to use for dataset preprocessing (map)"
         ),
     ] = 1_000,
 ):
@@ -269,13 +260,13 @@ def train(
 
 @app.command()
 def validate(
-    ds_repo_id: Annotated[str, typer.Option(..., help="The HF dataset repo ID")],
+    ds_repo_id: Annotated[str, typer.Option(help="The HF dataset repo ID")],
     lora_repo_id: Annotated[
-        str, typer.Option(..., help="The HF repo ID where the LoRA adapters are stored")
+        str, typer.Option(help="The HF repo ID where the LoRA adapters are stored")
     ],
     output_path: Annotated[
         Path,
-        typer.Option(..., help="The path to the output JSONL file"),
+        typer.Option(help="The path to the output JSONL file"),
     ],
     lora_repo_revision: Annotated[
         str,
@@ -287,31 +278,29 @@ def validate(
     base_model: Annotated[
         str,
         typer.Option(
-            ...,
             help="The base model associated with the LoRA adapters.",
         ),
     ] = "unsloth/Qwen3-VL-8B-Instruct",
     batch_size: Annotated[
         int,
-        typer.Option(..., help="The per-device batch size to use during validation"),
+        typer.Option(help="The per-device batch size to use during validation"),
     ] = 8,
     image_max_size: Annotated[
         int,
         typer.Option(
-            ...,
             help="The maximum size (height or width) of the images after resizing",
         ),
     ] = 1024,
     max_seq_length: Annotated[
         int,
-        typer.Option(..., help="The maximum sequence length for the model"),
+        typer.Option(help="The maximum sequence length for the model"),
     ] = 8192,
     enforce_schema: Annotated[
         bool,
-        typer.Option(..., help="Whether to enforce the JSON schema during validation"),
+        typer.Option(help="Whether to enforce the JSON schema during validation"),
     ] = True,
     upload_to_hub: Annotated[
-        bool, typer.Option(..., help="Whether to upload the output file to the Hub")
+        bool, typer.Option(help="Whether to upload the output file to the Hub")
     ] = True,
     output_path_in_repo: Annotated[
         str,
@@ -322,7 +311,6 @@ def validate(
     json_schema_path: Annotated[
         Path | None,
         typer.Option(
-            ...,
             help="Path to the JSON schema to use. If not provided, the JSON schema "
             "registered in the model `config.json` file will be used.",
             file_okay=True,
