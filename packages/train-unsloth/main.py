@@ -277,6 +277,13 @@ def validate(
         Path,
         typer.Option(..., help="The path to the output JSONL file"),
     ],
+    lora_repo_revision: Annotated[
+        str,
+        typer.Option(
+            help="The revision (branch, tag, commit) of the HF LoRA repo to use. This is also the revision "
+            "used to upload the validation outputs to the Hub.",
+        ),
+    ] = "main",
     base_model: Annotated[
         str,
         typer.Option(
@@ -324,6 +331,10 @@ def validate(
         ),
     ] = None,
 ):
+    import os
+
+    # Making prediction deterministic:
+    os.environ["VLLM_ENABLE_V1_MULTIPROCESSING"] = "0"
     import orjson
     from datasets import Dataset, load_dataset
     from huggingface_hub import snapshot_download, upload_file
@@ -367,7 +378,9 @@ def validate(
 
     typer.echo("Downloading LoRA weights...")
     lora_checkpoint_path = Path(
-        snapshot_download(repo_id=lora_repo_id, repo_type="model")
+        snapshot_download(
+            repo_id=lora_repo_id, repo_type="model", revision=lora_repo_revision
+        )
     )
     adapter_config = get_adapter_config(lora_checkpoint_path)
     lora_rank = adapter_config["r"]
@@ -394,6 +407,7 @@ def validate(
             path_in_repo=output_path_in_repo,
             repo_id=lora_repo_id,
             repo_type="model",
+            revision=lora_repo_revision,
         )
 
 
