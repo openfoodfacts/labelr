@@ -321,7 +321,9 @@ def validate(
 ):
     import os
 
-    # Making prediction deterministic:
+    # Making prediction deterministic
+    # See:
+    # https://docs.vllm.ai/en/latest/usage/reproducibility/
     os.environ["VLLM_ENABLE_V1_MULTIPROCESSING"] = "0"
     import orjson
     from datasets import Dataset, load_dataset
