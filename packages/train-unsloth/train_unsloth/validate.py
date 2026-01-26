@@ -14,6 +14,21 @@ from vllm.sampling_params import StructuredOutputsParams
 JSONType = dict[str, Any]
 
 
+def get_adapter_config(model_checkpoint_path: Path) -> JSONType:
+    """Load the adapter configuration from the model checkpoint directory.
+
+    Args:
+        model_checkpoint_path (Path): The path to the model checkpoint
+        directory.
+    Returns:
+        JSONType: The adapter configuration.
+    """
+    adapter_config_path = model_checkpoint_path / "adapter_config.json"
+    with adapter_config_path.open("r") as f:
+        adapter_config = orjson.loads(f.read())
+    return adapter_config
+
+
 def run_on_validation_set(
     base_model: str,
     val_ds: "Dataset",

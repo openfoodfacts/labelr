@@ -306,6 +306,12 @@ def validate(
     upload_to_hub: Annotated[
         bool, typer.Option(..., help="Whether to upload the output file to the Hub")
     ] = True,
+    output_path_in_repo: Annotated[
+        str,
+        typer.Option(
+            help="The path in the HF repo where the predictions are stored",
+        ),
+    ] = "predictions/val.jsonl",
     json_schema_path: Annotated[
         Path | None,
         typer.Option(
@@ -317,14 +323,6 @@ def validate(
             readable=True,
         ),
     ] = None,
-    max_lora_rank: Annotated[
-        int,
-        typer.Option(
-            ...,
-            help="The maximum LoRA rank to use. Must be the same as used "
-            "during training",
-        ),
-    ] = 16,
 ):
     import orjson
     from datasets import Dataset, load_dataset
@@ -335,7 +333,7 @@ def validate(
         get_config,
         get_full_instructions,
     )
-    from train_unsloth.validate import run_on_validation_set
+    from train_unsloth.validate import get_adapter_config, run_on_validation_set
 
     typer.echo("Running model on validation set...")
 
@@ -368,18 +366,24 @@ def validate(
     )
 
     typer.echo("Downloading LoRA weights...")
-    lora_checkpoint_path = snapshot_download(repo_id=lora_repo_id, repo_type="model")
+    lora_checkpoint_path = Path(
+        snapshot_download(repo_id=lora_repo_id, repo_type="model")
+    )
+    adapter_config = get_adapter_config(lora_checkpoint_path)
+    lora_rank = adapter_config["r"]
+
     typer.echo("LoRA weights downloaded to %s" % lora_checkpoint_path)
     run_on_validation_set(
         base_model=base_model,
         val_ds=converted_val_dataset,
-        lora_checkpoint_dir=Path(lora_checkpoint_path),
+        lora_checkpoint_dir=lora_checkpoint_path,
         output_path=output_path,
         json_schema=json_schema,
         batch_size=batch_size,
         max_seq_length=max_seq_length,
         enforce_schema=enforce_schema,
-        max_lora_rank=max_lora_rank,
+        # Ensure the max_lora_rank matches `r` used during training
+        max_lora_rank=lora_rank,
     )
 
     if upload_to_hub:
@@ -387,7 +391,7 @@ def validate(
         # Upload the validation outputs to the Hub
         upload_file(
             path_or_fileobj=output_path,
-            path_in_repo="validation_output.jsonl",
+            path_in_repo=output_path_in_repo,
             repo_id=lora_repo_id,
             repo_type="model",
         )
