@@ -29,7 +29,7 @@ labelr = "labelr.main:app"
 
 [project.optional-dependencies]
 ultralytics = [
-    "ultralytics==8.3.223",
+    "ultralytics==8.4.8",
 ]
 fiftyone = [
     "fiftyone~=1.10.0"

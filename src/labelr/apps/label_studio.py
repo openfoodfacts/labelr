@@ -216,9 +216,10 @@ def annotate_from_prediction(
             )
 
 
-class PredictorBackend(enum.Enum):
-    ultralytics = "ultralytics"
-    robotoff = "robotoff"
+class PredictorBackend(enum.StrEnum):
+    ultralytics = enum.auto()
+    ultralytics_sam3 = enum.auto()
+    robotoff = enum.auto()
 
 
 @app.command()
@@ -226,32 +227,42 @@ def add_prediction(
     api_key: Annotated[str, typer.Option(envvar="LABEL_STUDIO_API_KEY")],
     project_id: Annotated[int, typer.Option(help="Label Studio Project ID")],
     view_id: Annotated[
-        Optional[int],
+        int | None,
         typer.Option(
             help="Label Studio View ID to filter tasks. If not provided, all tasks in the "
             "project are processed."
         ),
     ] = None,
     model_name: Annotated[
-        str,
+        str | None,
         typer.Option(
             help="Name of the object detection model to run (for Robotoff server) or "
-            "of the Ultralytics zero-shot model to run."
+            "of the Ultralytics zero-shot model to run. If using Ultralytics backend "
+            "and no model name is provided, the default is yolov8x-worldv2.pt. "
+            "If using ultralytics_sam3 backend, the model name is ignored."
         ),
-    ] = "yolov8x-worldv2.pt",
+    ] = None,
+    skip_existing: Annotated[
+        bool,
+        typer.Option(
+            help="Skip tasks that already have predictions",
+        ),
+    ] = True,
     server_url: Annotated[
-        Optional[str],
-        typer.Option(help="The Robotoff URL if the backend is robotoff"),
+        str | None,
+        typer.Option(
+            help="The Robotoff URL if the backend is robotoff. If the backend is "
+            "different than robotoff, this option is ignored."
+        ),
     ] = "https://robotoff.openfoodfacts.org",
     backend: Annotated[
         PredictorBackend,
         typer.Option(
-            help="Prediction backend: either use Ultralytics to perform "
-            "the prediction or Robotoff server."
+            help="The prediction backend, possible options are: `ultralytics`, `ultralytics_sam3` and `robotoff`"
         ),
     ] = PredictorBackend.ultralytics,
     labels: Annotated[
-        Optional[list[str]],
+        list[str] | None,
         typer.Option(
             help="List of class labels to use for Yolo model. If you're using Yolo-World or other "
             "zero-shot models, this is the list of label names that are going to be provided to the "
@@ -260,15 +271,18 @@ def add_prediction(
         ),
     ] = None,
     label_mapping: Annotated[
-        Optional[str],
-        typer.Option(help="Mapping of model labels to class names, as a JSON string"),
+        str | None,
+        typer.Option(
+            help='Mapping of model labels to class names, as a JSON string. Example: \'{"price tag": "price-tag"}\''
+        ),
     ] = None,
     label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
     threshold: Annotated[
-        Optional[float],
+        float | None,
         typer.Option(
             help="Confidence threshold for selecting bounding boxes. The default is 0.3 "
-            "for robotoff backend and 0.1 for ultralytics backend."
+            "for robotoff backend, 0.1 for ultralytics backend and 0.25 for "
+            "ultralytics_sam3 backend."
         ),
     ] = None,
     max_det: Annotated[int, typer.Option(help="Maximum numbers of detections")] = 300,
@@ -283,14 +297,24 @@ def add_prediction(
         typer.Option(help="Raise an error if image download fails"),
     ] = True,
     model_version: Annotated[
-        Optional[str],
-        typer.Option(help="Model version to use for the prediction"),
+        str | None,
+        typer.Option(
+            help="Set the model version field of the prediction sent to Label Studio. "
+            "This is used to track which model generated the prediction."
+        ),
+    ] = None,
+    imgsz: Annotated[
+        int | None,
+        typer.Option(
+            help="Image size to use for Ultralytics models. If not provided, "
+            "the default size of the model is used."
+        ),
     ] = None,
 ):
-    """Add predictions as pre-annotations to Label Studio tasks,
-    for an object detection model running on Triton Inference Server."""
+    """Add predictions as pre-annotations to Label Studio tasks."""
 
     import tqdm
+    from huggingface_hub import hf_hub_download
     from label_studio_sdk.client import LabelStudio
     from openfoodfacts.utils import get_image_from_url, http_session
     from PIL import Image
@@ -318,7 +342,10 @@ def add_prediction(
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
 
     if backend == PredictorBackend.ultralytics:
-        from ultralytics import YOLO
+        from ultralytics import YOLO, YOLOWorld
+
+        if model_name is None:
+            model_name = "yolov8x-worldv2.pt"
 
         if labels is None:
             raise typer.BadParameter("Labels are required for Ultralytics backend")
@@ -328,9 +355,33 @@ def add_prediction(
 
         model = YOLO(model_name)
         if hasattr(model, "set_classes"):
+            model = typing.cast(YOLOWorld, model)
             model.set_classes(labels)
         else:
             logger.warning("The model does not support setting classes directly.")
+    elif backend == PredictorBackend.ultralytics_sam3:
+        from ultralytics.models.sam import SAM3SemanticPredictor
+
+        if threshold is None:
+            threshold = 0.25
+
+        # SAM3 cannot be downloaded directly using to to a gated access. Use a
+        # proxy repo.
+        model_path = hf_hub_download(
+            "1038lab/sam3",
+            filename="sam3.pt",
+            revision="f055b060a4de0a040891ba2ebac9c5cb3c1c0132",
+        )
+        overrides = dict(
+            task="segment",
+            mode="predict",
+            model=model_path,
+            save=False,
+        )
+
+        if imgsz is not None:
+            overrides["imgsz"] = imgsz
+        model = SAM3SemanticPredictor(overrides=overrides)
     elif backend == PredictorBackend.robotoff:
         if server_url is None:
             raise typer.BadParameter("--server-url is required for Robotoff backend")
@@ -344,22 +395,32 @@ def add_prediction(
     for task in tqdm.tqdm(
         ls.tasks.list(project=project_id, view=view_id), desc="tasks"
     ):
-        if task.total_predictions == 0:
+        if not (skip_existing and task.total_predictions > 0):
             image_url = task.data["image_url"]
             image = typing.cast(
                 Image.Image,
                 get_image_from_url(image_url, error_raise=error_raise),
             )
+            min_score = None
             if backend == PredictorBackend.ultralytics:
-                results = model.predict(
-                    image,
-                    conf=threshold,
-                    max_det=max_det,
-                )[0]
+                predict_kwargs = {
+                    "conf": threshold,
+                    "max_det": max_det,
+                }
+                if imgsz is not None:
+                    predict_kwargs["imgsz"] = imgsz
+                results = model.predict(image, **predict_kwargs)[0]
                 labels = typing.cast(list[str], labels)
                 label_studio_result = format_annotation_results_from_ultralytics(
                     results, labels, label_mapping_dict
                 )
+            elif backend == PredictorBackend.ultralytics_sam3:
+                model.set_image(image)
+                results = model(text=labels)[0]
+                label_studio_result = format_annotation_results_from_ultralytics(
+                    results, labels, label_mapping_dict
+                )
+                min_score = min(results.boxes.conf.tolist(), default=None)
             elif backend == PredictorBackend.robotoff:
                 r = http_session.get(
                     f"{server_url}/api/v1/images/predict",
@@ -385,7 +446,9 @@ def add_prediction(
                     task=task.id,
                     result=label_studio_result,
                     model_version=model_version,
+                    score=min_score,
                 )
+                logger.info("Prediction added for task: %s", task.id)
 
 
 @app.command()
