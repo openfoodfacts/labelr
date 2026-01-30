@@ -529,14 +529,30 @@ def check_dataset(
         Optional[str], typer.Option(envvar="LABEL_STUDIO_API_KEY")
     ] = None,
     label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
+    delete_missing_images: Annotated[
+        bool,
+        typer.Option(help="Delete tasks with missing images from the dataset"),
+    ] = False,
 ):
-    """Check a dataset for duplicate images on Label Studio."""
+    """Perform sanity checks of a Label Studio dataset.
+
+    This function checks for:
+    - Tasks with missing images (404)
+    - Duplicate images based on perceptual hash (pHash)
+    - Tasks with multiple annotations
+
+    This function doesn't perform any modifications to the dataset, except
+    optionally deleting tasks with missing images if --delete-missing-images
+    is provided.
+    """
     from label_studio_sdk.client import LabelStudio
 
     from ..check import check_ls_dataset
 
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
-    check_ls_dataset(ls, project_id)
+    check_ls_dataset(
+        ls=ls, project_id=project_id, delete_missing_images=delete_missing_images
+    )
 
 
 @app.command()
