@@ -11,7 +11,14 @@ app = typer.Typer(pretty_exceptions_enable=False)
 
 @app.command()
 def train(
-    ds_repo_id: Annotated[str, typer.Option(help="The HF dataset repo ID")],
+    ds_repo_id: Annotated[
+        str,
+        typer.Option(
+            help="The HF dataset repo ID. "
+            "It must follow the LLM image extraction format, see "
+            "https://openfoodfacts.github.io/robotoff/references/datasets/llm-image-extraction/ for more details."
+        ),
+    ],
     output_repo_id: Annotated[
         str, typer.Option(help="The HF repo ID to push the trained model to")
     ],
@@ -151,6 +158,12 @@ def train(
             help="The writer batch size to use for dataset preprocessing (map)"
         ),
     ] = 1_000,
+    report_to: Annotated[
+        str,
+        typer.Option(
+            help="The experiment tracking tool to use. Can be 'wandb' or 'none'."
+        ),
+    ] = "wandb",
 ):
     from unsloth import FastVisionModel  # isort:skip
     from unsloth.trainer import UnslothVisionDataCollator  # isort:skip
@@ -162,6 +175,14 @@ def train(
         get_config,
         get_full_instructions,
     )
+    import os
+
+    if "HF_TOKEN" not in os.environ and push_to_hub:
+        raise ValueError(
+            "HF_TOKEN environment variable must be set to push to HF Hub. "
+            "Provide a valid token with write access to the repo, or pass "
+            "--no-push-to-hub."
+        )
 
     model, processor = FastVisionModel.from_pretrained(
         base_model,
@@ -214,6 +235,7 @@ def train(
         ),
     )
 
+    report_to = report_to if report_to != "none" else None
     # Enable training mode
     FastVisionModel.for_training(model)
     trainer = SFTTrainer(
@@ -240,7 +262,7 @@ def train(
             weight_decay=weight_decay,
             lr_scheduler_type="linear",
             output_dir="outputs",
-            report_to="wandb",
+            report_to=report_to,
             save_steps=save_steps,
             save_total_limit=save_total_limit,
             save_only_model=True,
