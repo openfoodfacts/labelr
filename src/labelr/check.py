@@ -13,7 +13,11 @@ logger = get_logger(__name__)
 
 
 def check_ls_dataset(
-    ls: LabelStudio, project_id: int, delete_missing_images: bool = False
+    ls: LabelStudio,
+    project_id: int,
+    view_id: int | None = None,
+    delete_missing_images: bool = False,
+    delete_duplicate_images: bool = False,
 ):
     """Perform sanity checks of a Label Studio dataset.
 
@@ -29,8 +33,14 @@ def check_ls_dataset(
     Args:
         ls (LabelStudio): Label Studio client instance.
         project_id (int): ID of the Label Studio project to check.
+        view_id (int): ID of the Label Studio view to check. If None, no
+            filtering is done.
         delete_missing_images (bool): Whether to delete tasks with missing
             images.
+        delete_duplicate_images (bool): Whether to delete tasks with duplicate
+            images. If one task has annotations and the other doesn't, the task
+            with annotations will be kept. Otherwise, the most recent task will
+            be kept.
     """
     skipped = 0
     not_annotated = 0
@@ -39,7 +49,7 @@ def check_ls_dataset(
     multiple_annotations = 0
     hash_map = defaultdict(list)
     for task in tqdm.tqdm(
-        ls.tasks.list(project=project_id, fields="all"), desc="tasks"
+        ls.tasks.list(project=project_id, fields="all", view=view_id), desc="tasks"
     ):
         annotations = typing.cast(list[JSONType], task.annotations)
 
@@ -82,6 +92,14 @@ def check_ls_dataset(
     for image_hash, task_ids in hash_map.items():
         if len(task_ids) > 1:
             logger.warning("Duplicate images: %s", task_ids)
+            if delete_duplicate_images:
+                tasks = [ls.tasks.get(id=task_id) for task_id in task_ids]
+                # We sort the tasks by the number of annotations, so that we keep the
+                # one with at least one annotation.
+                for task in sorted(tasks, key=lambda x: len(x.annotations) > 0)[:-1]:
+                    logger.info("Deleting duplicate task: %s", task.id)
+                    ls.tasks.delete(task.id)
+                    deleted += 1
 
     logger.info(
         "Tasks - annotated: %d, skipped: %d, not annotated: %d, multiple annotations: %d",

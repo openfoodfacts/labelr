@@ -525,13 +525,15 @@ def create_config_file(
 @app.command()
 def check_dataset(
     project_id: Annotated[int, typer.Option(help="Label Studio Project ID")],
-    api_key: Annotated[
-        Optional[str], typer.Option(envvar="LABEL_STUDIO_API_KEY")
-    ] = None,
+    view_id: Annotated[int, typer.Option(help="Label Studio View ID, if any.")] = None,
+    api_key: Annotated[str | None, typer.Option(envvar="LABEL_STUDIO_API_KEY")] = None,
     label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
     delete_missing_images: Annotated[
         bool,
         typer.Option(help="Delete tasks with missing images from the dataset"),
+    ] = False,
+    delete_duplicate_images: Annotated[
+        bool, typer.Option(help="Delete duplicate images from the dataset")
     ] = False,
 ):
     """Perform sanity checks of a Label Studio dataset.
@@ -543,6 +545,7 @@ def check_dataset(
 
     This function doesn't perform any modifications to the dataset, except
     optionally deleting tasks with missing images if --delete-missing-images
+    is provided and tasks with duplicate images if --delete-duplicate-images
     is provided.
     """
     from label_studio_sdk.client import LabelStudio
@@ -551,7 +554,11 @@ def check_dataset(
 
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
     check_ls_dataset(
-        ls=ls, project_id=project_id, delete_missing_images=delete_missing_images
+        ls=ls,
+        project_id=project_id,
+        view_id=view_id,
+        delete_missing_images=delete_missing_images,
+        delete_duplicate_images=delete_duplicate_images,
     )
 
 
