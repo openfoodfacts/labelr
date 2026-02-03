@@ -19,7 +19,7 @@ from labelr.export.object_detection import (
 )
 
 from . import typer_description
-from ..config import config
+from ..config import config, check_required_field
 from ..types import ExportDestination, ExportSource, TaskType
 
 app = typer.Typer()
@@ -143,8 +143,8 @@ def export(
         typer.Option(help="Label names to use, as a comma-separated list"),
     ] = None,
     project_id: Annotated[
-        Optional[int], typer.Option(help="Label Studio Project ID")
-    ] = None,
+        int | None, typer.Option(help=typer_description.LABEL_STUDIO_PROJECT_ID)
+    ] = config.label_studio_project_id,
     view_id: Annotated[
         int | None,
         typer.Option(
@@ -241,6 +241,8 @@ def export(
     from labelr.export.object_detection import (
         export_from_hf_to_ultralytics_object_detection,
     )
+
+    check_required_field("--project-id", project_id)
 
     if (to == ExportDestination.hf or from_ == ExportSource.hf) and repo_id is None:
         raise typer.BadParameter("Repository ID is required for export/import with HF")

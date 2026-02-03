@@ -1,9 +1,17 @@
 from pathlib import Path
+from typing import Any
 
+import typer
 from pydantic import BaseModel, Field
 import os
 
 CONFIG_PATH = Path("~").expanduser() / ".config/labelr/config.json"
+
+
+def check_required_field(name: str, value: Any):
+    """Check if a field if not null or empty, raise a BadParameter exception if it is."""
+    if not value:
+        raise typer.BadParameter(f"'{name}' is required.")
 
 
 # validate_assignment allows to validate the model everytime it is updated

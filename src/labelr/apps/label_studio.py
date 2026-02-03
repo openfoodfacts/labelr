@@ -8,7 +8,7 @@ import typer
 from openfoodfacts.utils import get_logger
 
 from . import typer_description
-from ..config import config
+from ..config import config, check_required_field
 
 app = typer.Typer()
 
@@ -49,13 +49,15 @@ def create(
 
 @app.command()
 def import_data(
-    project_id: Annotated[int, typer.Option(help="Label Studio Project ID")],
     dataset_path: Annotated[
         Path,
         typer.Option(
             help="Path to the Label Studio dataset JSONL file", file_okay=True
         ),
     ],
+    project_id: Annotated[
+        int | None, typer.Option(help=typer_description.LABEL_STUDIO_PROJECT_ID)
+    ] = config.label_studio_project_id,
     api_key: Annotated[
         str, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
     ] = config.label_studio_api_key,
@@ -77,6 +79,7 @@ def import_data(
     from label_studio_sdk.client import LabelStudio
 
     check_label_studio_api_key(api_key)
+    check_required_field("--project-id", project_id)
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
 
     with dataset_path.open("rt") as f:
@@ -87,37 +90,13 @@ def import_data(
 
 
 @app.command()
-def update_prediction(
-    project_id: Annotated[int, typer.Option(help="Label Studio project ID")],
-    api_key: Annotated[
-        str, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
-    ] = config.label_studio_api_key,
-    label_studio_url: Annotated[
-        str, typer.Option(help=typer_description.LABEL_STUDIO_URL)
-    ] = config.label_studio_url,
-):
-    from label_studio_sdk.client import LabelStudio
-
-    check_label_studio_api_key(api_key)
-    ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
-
-    for task in ls.tasks.list(project=project_id, fields="all"):
-        for prediction in task.predictions:
-            prediction_id = prediction["id"]
-            if prediction["model_version"] == "":
-                logger.info("Updating prediction: %s", prediction_id)
-                ls.predictions.update(
-                    id=prediction_id,
-                    model_version="undefined",
-                )
-
-
-@app.command()
 def add_split(
     train_split: Annotated[
         float, typer.Option(help="fraction of samples to add in train split")
     ],
-    project_id: Annotated[int, typer.Option(help="Label Studio project ID")],
+    project_id: Annotated[
+        int | None, typer.Option(help=typer_description.LABEL_STUDIO_PROJECT_ID)
+    ] = config.label_studio_project_id,
     train_split_name: Annotated[
         str,
         typer.Option(help="name of the train split"),
@@ -180,6 +159,7 @@ def add_split(
     from label_studio_sdk.client import LabelStudio
 
     check_label_studio_api_key(api_key)
+    check_required_field("--project-id", project_id)
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
 
     task_ids = None
@@ -214,7 +194,9 @@ def add_split(
 
 @app.command()
 def annotate_from_prediction(
-    project_id: Annotated[int, typer.Option(help="Label Studio project ID")],
+    project_id: Annotated[
+        int | None, typer.Option(help=typer_description.LABEL_STUDIO_PROJECT_ID)
+    ] = config.label_studio_project_id,
     api_key: Annotated[
         str, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
     ] = config.label_studio_api_key,
@@ -235,6 +217,7 @@ def annotate_from_prediction(
     from label_studio_sdk.types.task import Task
 
     check_label_studio_api_key(api_key)
+    check_required_field("--project-id", project_id)
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
 
     task: Task
@@ -272,7 +255,9 @@ YOLO_WORLD_MODELS = (
 
 @app.command()
 def add_prediction(
-    project_id: Annotated[int, typer.Option(help="Label Studio Project ID")],
+    project_id: Annotated[
+        int | None, typer.Option(help=typer_description.LABEL_STUDIO_PROJECT_ID)
+    ] = config.label_studio_project_id,
     api_key: Annotated[
         str, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
     ] = config.label_studio_api_key,
@@ -368,6 +353,7 @@ def add_prediction(
     from ..annotate import format_annotation_results_from_ultralytics
 
     check_label_studio_api_key(api_key)
+    check_required_field("--project-id", project_id)
 
     label_mapping_dict = None
     if label_mapping:
@@ -510,6 +496,7 @@ def delete_prediction(
     import tqdm
 
     check_label_studio_api_key(api_key)
+    check_required_field("--project-id", project_id)
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
 
     query = {
@@ -608,7 +595,9 @@ def create_config_file(
 
 @app.command()
 def check_dataset(
-    project_id: Annotated[int, typer.Option(help="Label Studio Project ID")],
+    project_id: Annotated[
+        int | None, typer.Option(help=typer_description.LABEL_STUDIO_PROJECT_ID)
+    ] = config.label_studio_project_id,
     view_id: Annotated[int, typer.Option(help="Label Studio View ID, if any.")] = None,
     api_key: Annotated[
         str, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
@@ -641,6 +630,7 @@ def check_dataset(
     from ..check import check_ls_dataset
 
     check_label_studio_api_key(api_key)
+    check_required_field("--project-id", project_id)
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
     check_ls_dataset(
         ls=ls,
@@ -690,10 +680,12 @@ def delete_user(
 
 @app.command()
 def dump_dataset(
-    project_id: Annotated[int, typer.Option(help="Label Studio Project ID")],
     output_file: Annotated[
         Path, typer.Option(help="Path of the output file", writable=True)
     ],
+    project_id: Annotated[
+        int | None, typer.Option(help=typer_description.LABEL_STUDIO_PROJECT_ID)
+    ] = config.label_studio_project_id,
     api_key: Annotated[
         str, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
     ] = config.label_studio_api_key,
@@ -719,6 +711,7 @@ def dump_dataset(
     from label_studio_sdk.client import LabelStudio
 
     check_label_studio_api_key(api_key)
+    check_required_field("--project-id", project_id)
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
 
     with output_file.open("wb") as f:
