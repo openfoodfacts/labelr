@@ -278,10 +278,7 @@ def add_prediction(
     ] = config.label_studio_api_key,
     view_id: Annotated[
         int | None,
-        typer.Option(
-            help="Label Studio View ID to filter tasks. If not provided, all tasks in the "
-            "project are processed."
-        ),
+        typer.Option(help=typer_description.LABEL_STUDIO_VIEW_ID),
     ] = None,
     model_name: Annotated[
         str | None,
@@ -367,7 +364,6 @@ def add_prediction(
     from huggingface_hub import hf_hub_download
     from label_studio_sdk.client import LabelStudio
     from openfoodfacts.utils import get_image_from_url
-    from PIL import Image
 
     from ..annotate import format_annotation_results_from_ultralytics
 
@@ -485,6 +481,58 @@ def add_prediction(
                     score=min_score,
                 )
                 logger.info("Prediction added for task: %s", task.id)
+
+
+@app.command()
+def delete_prediction(
+    project_id: Annotated[
+        int, typer.Option(help=typer_description.LABEL_STUDIO_PROJECT_ID)
+    ],
+    model_version: Annotated[
+        str,
+        typer.Option(
+            help="The model version associated with the prediction set to delete"
+        ),
+    ],
+    api_key: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
+    ] = config.label_studio_api_key,
+    label_studio_url: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_URL)
+    ] = config.label_studio_url,
+    dry_run: Annotated[
+        bool,
+        typer.Option(help="Launch in dry run mode, without deleting any prediction"),
+    ] = False,
+):
+    """Delete predictions for a given model version in a Label Studio project."""
+    from label_studio_sdk.client import LabelStudio
+    import tqdm
+
+    check_label_studio_api_key(api_key)
+    ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
+
+    query = {
+        "conjunction": "and",
+        "items": [
+            {
+                "filter": "filter:tasks:predictions_model_versions",
+                "operator": "contains",
+                "value": [model_version],
+                "type": "List",
+            }
+        ],
+    }
+
+    for task in tqdm.tqdm(ls.tasks.list(project=project_id, query=query), desc="tasks"):
+        for prediction in task.predictions:
+            if prediction["model_version"] != model_version:
+                continue
+            if dry_run:
+                logger.info("Dry run: prediction %s would be deleted", prediction["id"])
+            else:
+                ls.predictions.delete(prediction["id"])
+                logger.info("Prediction deleted: %s", prediction["id"])
 
 
 @app.command()
