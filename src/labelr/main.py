@@ -10,6 +10,7 @@ from labelr.apps import google_batch as google_batch_app
 from labelr.apps import hugging_face as hf_app
 from labelr.apps import label_studio as ls_app
 from labelr.apps import train as train_app
+from labelr import config as _config
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
 
@@ -59,6 +60,17 @@ def predict(
 
     for result in results:
         typer.echo(result)
+
+
+@app.command()
+def config(name: str, value: str):
+    """Set a Labelr configuration value.
+
+    The configuration is stored in a JSON file at ~/.config/.labelr/config.json.
+    """
+    typer.echo(f"Set '{name}' to '{value}'")
+    _config.set_file_config(name, value)
+    typer.echo(f"Configuration saved to {_config.CONFIG_PATH}")
 
 
 app.add_typer(

@@ -4,15 +4,30 @@ Labelr a command line interface that aims to provide a set of tools to help data
 
 This project started as a way to automate some of the tasks we do at Open Food Facts to manage data at different stages of the machine learning pipeline.
 
-The CLI currently is integrated with Label Studio (for data annotation), Ultralytics (for object detection) and Hugging Face (for model and dataset storage). It only works with some specific tasks (object detection only currently), but it's meant to be extended to other tasks in the future.
+The CLI currently is integrated with Label Studio (for data annotation), Ultralytics (for object detection) and Hugging Face (for model and dataset storage). It only works with some specific tasks (object detection and image classification only for now), but it's meant to be extended to other tasks in the future.
 
-It currently allows to:
+For object detection and image classification models, it currently allows to:
 
 - create Label Studio projects
 - upload images to Label Studio
-- pre-annotate the tasks either with an existing object detection model run by Triton, or with Yolo-World (through Ultralytics)
-- perform data quality checks on Label Studio
-- export the data to Hugging Face Dataset or to local disk
+- pre-annotate the tasks either with an existing object detection model, or with a zero-shot model (Yolo-World or SAM), using Ultralytics
+- perform data quality checks on Label Studio datasets
+- export the data to Hugging Face or to local disk
+- train the model on Google Batch (for object detection only)
+- visualize the model predictions and compare them with the ground truth, using [Fiftyone](https://docs.voxel51.com/user_guide/index.html).
+
+Labelr also support managing datasets for fine-tuning large visual language models. It currently only support a single task: structured extraction (JSON) from a single image.
+The following features are supported:
+
+- creating training datasets using Google Gemini Batch, from a list of images, textual instructions and a JSON schema
+- uploading the dataset to Hugging Face
+- fixing manually or automatically the model output using [Directus](https://directus.io/), a headless CMS used to manage the structured output
+- export the dataset to Hugging Face
+
+In addition, Labelr comes with two scripts that can be used to train ML models:
+
+- in `packages/train-yolo`: the `main.py` script can be used to train an object detection model using Ultralytics. The training can be fully automatized on Google Batch, and Labelr provides a CLI to launch Google Batch jobs.
+- in `packages/train-unsloth`: the `main.py` script can be used to train a visual language model using Unsloth. The training is not yet automatized on Google Batch, but the script can be used to train the model locally.
 
 ## Installation
 

@@ -18,7 +18,8 @@ from labelr.export.object_detection import (
     export_from_ls_to_ultralytics_object_detection,
 )
 
-from ..config import LABEL_STUDIO_DEFAULT_URL
+from . import typer_description
+from ..config import config
 from ..types import ExportDestination, ExportSource, TaskType
 
 app = typer.Typer()
@@ -125,7 +126,9 @@ def convert_object_detection_dataset(
 def export(
     from_: Annotated[ExportSource, typer.Option("--from", help="Input source to use")],
     to: Annotated[ExportDestination, typer.Option(help="Where to export the data")],
-    api_key: Annotated[Optional[str], typer.Option(envvar="LABEL_STUDIO_API_KEY")],
+    api_key: Annotated[
+        str | None, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
+    ] = config.label_studio_api_key,
     task_type: Annotated[
         TaskType, typer.Option(help="Type of task to export")
     ] = TaskType.object_detection,
@@ -149,7 +152,9 @@ def export(
             "to filter the task to export."
         ),
     ] = None,
-    label_studio_url: Optional[str] = LABEL_STUDIO_DEFAULT_URL,
+    label_studio_url: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_URL)
+    ] = config.label_studio_url,
     output_dir: Annotated[
         Optional[Path],
         typer.Option(

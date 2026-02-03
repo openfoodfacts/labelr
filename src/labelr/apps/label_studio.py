@@ -7,25 +7,39 @@ from typing import Annotated, Optional
 import typer
 from openfoodfacts.utils import get_logger
 
-from ..config import LABEL_STUDIO_DEFAULT_URL
+from . import typer_description
+from ..config import config
 
 app = typer.Typer()
 
 logger = get_logger(__name__)
 
 
+def check_label_studio_api_key(api_key: str | None):
+    if not api_key:
+        raise typer.BadParameter(
+            "Label Studio API key not provided. Please provide it with the "
+            "--api-key option or set the LABELR_LABEL_STUDIO_API_KEY environment variable."
+        )
+
+
 @app.command()
 def create(
-    api_key: Annotated[str, typer.Option(envvar="LABEL_STUDIO_API_KEY")],
     title: Annotated[str, typer.Option(help="Project title")],
     config_file: Annotated[
         Path, typer.Option(help="Path to label config file", file_okay=True)
     ],
-    label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
+    api_key: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
+    ] = config.label_studio_api_key,
+    label_studio_url: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_URL)
+    ] = config.label_studio_url,
 ):
     """Create a new Label Studio project."""
     from label_studio_sdk.client import LabelStudio
 
+    check_label_studio_api_key(api_key)
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
     label_config = config_file.read_text()
 
@@ -35,7 +49,6 @@ def create(
 
 @app.command()
 def import_data(
-    api_key: Annotated[str, typer.Option(envvar="LABEL_STUDIO_API_KEY")],
     project_id: Annotated[int, typer.Option(help="Label Studio Project ID")],
     dataset_path: Annotated[
         Path,
@@ -43,7 +56,12 @@ def import_data(
             help="Path to the Label Studio dataset JSONL file", file_okay=True
         ),
     ],
-    label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
+    api_key: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
+    ] = config.label_studio_api_key,
+    label_studio_url: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_URL)
+    ] = config.label_studio_url,
     batch_size: int = 25,
 ):
     """Import tasks from a dataset file to a Label Studio project.
@@ -56,6 +74,7 @@ def import_data(
     import tqdm
     from label_studio_sdk.client import LabelStudio
 
+    check_label_studio_api_key(api_key)
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
 
     with dataset_path.open("rt") as f:
@@ -67,12 +86,17 @@ def import_data(
 
 @app.command()
 def update_prediction(
-    api_key: Annotated[str, typer.Option(envvar="LABEL_STUDIO_API_KEY")],
     project_id: Annotated[int, typer.Option(help="Label Studio project ID")],
-    label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
+    api_key: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
+    ] = config.label_studio_api_key,
+    label_studio_url: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_URL)
+    ] = config.label_studio_url,
 ):
     from label_studio_sdk.client import LabelStudio
 
+    check_label_studio_api_key(api_key)
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
 
     for task in ls.tasks.list(project=project_id, fields="all"):
@@ -91,8 +115,10 @@ def add_split(
     train_split: Annotated[
         float, typer.Option(help="fraction of samples to add in train split")
     ],
-    api_key: Annotated[str, typer.Option(envvar="LABEL_STUDIO_API_KEY")],
     project_id: Annotated[int, typer.Option(help="Label Studio project ID")],
+    api_key: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
+    ] = config.label_studio_api_key,
     split_name: Annotated[
         Optional[str],
         typer.Option(
@@ -123,7 +149,9 @@ def add_split(
             "to filter the task to process."
         ),
     ] = None,
-    label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
+    label_studio_url: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_URL)
+    ] = config.label_studio_url,
 ):
     """Update the split field of tasks in a Label Studio project.
 
@@ -149,6 +177,7 @@ def add_split(
     from label_studio_sdk import Task
     from label_studio_sdk.client import LabelStudio
 
+    check_label_studio_api_key(api_key)
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
 
     task_ids = None
@@ -183,12 +212,16 @@ def add_split(
 
 @app.command()
 def annotate_from_prediction(
-    api_key: Annotated[str, typer.Option(envvar="LABEL_STUDIO_API_KEY")],
     project_id: Annotated[int, typer.Option(help="Label Studio project ID")],
+    api_key: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
+    ] = config.label_studio_api_key,
     updated_by: Annotated[
         Optional[int], typer.Option(help="User ID to declare as annotator")
     ] = None,
-    label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
+    label_studio_url: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_URL)
+    ] = config.label_studio_url,
 ):
     """Create annotations for all tasks from predictions.
 
@@ -199,6 +232,7 @@ def annotate_from_prediction(
     from label_studio_sdk.client import LabelStudio
     from label_studio_sdk.types.task import Task
 
+    check_label_studio_api_key(api_key)
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
 
     task: Task
@@ -224,8 +258,10 @@ class PredictorBackend(enum.StrEnum):
 
 @app.command()
 def add_prediction(
-    api_key: Annotated[str, typer.Option(envvar="LABEL_STUDIO_API_KEY")],
     project_id: Annotated[int, typer.Option(help="Label Studio Project ID")],
+    api_key: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
+    ] = config.label_studio_api_key,
     view_id: Annotated[
         int | None,
         typer.Option(
@@ -276,7 +312,9 @@ def add_prediction(
             help='Mapping of model labels to class names, as a JSON string. Example: \'{"price tag": "price-tag"}\''
         ),
     ] = None,
-    label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
+    label_studio_url: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_URL)
+    ] = config.label_studio_url,
     threshold: Annotated[
         float | None,
         typer.Option(
@@ -323,6 +361,8 @@ def add_prediction(
         format_annotation_results_from_robotoff,
         format_annotation_results_from_ultralytics,
     )
+
+    check_label_studio_api_key(api_key)
 
     label_mapping_dict = None
     if label_mapping:
@@ -526,8 +566,12 @@ def create_config_file(
 def check_dataset(
     project_id: Annotated[int, typer.Option(help="Label Studio Project ID")],
     view_id: Annotated[int, typer.Option(help="Label Studio View ID, if any.")] = None,
-    api_key: Annotated[str | None, typer.Option(envvar="LABEL_STUDIO_API_KEY")] = None,
-    label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
+    api_key: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
+    ] = config.label_studio_api_key,
+    label_studio_url: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_URL)
+    ] = config.label_studio_url,
     delete_missing_images: Annotated[
         bool,
         typer.Option(help="Delete tasks with missing images from the dataset"),
@@ -552,6 +596,7 @@ def check_dataset(
 
     from ..check import check_ls_dataset
 
+    check_label_studio_api_key(api_key)
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
     check_ls_dataset(
         ls=ls,
@@ -564,12 +609,17 @@ def check_dataset(
 
 @app.command()
 def list_users(
-    api_key: Annotated[str, typer.Option(envvar="LABEL_STUDIO_API_KEY")],
-    label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
+    api_key: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
+    ] = config.label_studio_api_key,
+    label_studio_url: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_URL)
+    ] = config.label_studio_url,
 ):
     """List all users in Label Studio."""
     from label_studio_sdk.client import LabelStudio
 
+    check_label_studio_api_key(api_key)
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
 
     for user in ls.users.list():
@@ -579,12 +629,17 @@ def list_users(
 @app.command()
 def delete_user(
     user_id: int,
-    api_key: Annotated[str, typer.Option(envvar="LABEL_STUDIO_API_KEY")],
-    label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
+    api_key: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
+    ] = config.label_studio_api_key,
+    label_studio_url: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_URL)
+    ] = config.label_studio_url,
 ):
     """Delete a user from Label Studio."""
     from label_studio_sdk.client import LabelStudio
 
+    check_label_studio_api_key(api_key)
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
     ls.users.delete(user_id)
 
@@ -592,10 +647,12 @@ def delete_user(
 @app.command()
 def dump_dataset(
     project_id: Annotated[int, typer.Option(help="Label Studio Project ID")],
-    api_key: Annotated[str, typer.Option(envvar="LABEL_STUDIO_API_KEY")],
     output_file: Annotated[
         Path, typer.Option(help="Path of the output file", writable=True)
     ],
+    api_key: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
+    ] = config.label_studio_api_key,
     view_id: Annotated[
         int | None,
         typer.Option(
@@ -603,7 +660,9 @@ def dump_dataset(
             "to filter the tasks to dump."
         ),
     ] = None,
-    label_studio_url: str = LABEL_STUDIO_DEFAULT_URL,
+    label_studio_url: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_URL)
+    ] = config.label_studio_url,
 ):
     """Dump all the tasks of a dataset in a JSONL file.
 
@@ -615,6 +674,7 @@ def dump_dataset(
     import tqdm
     from label_studio_sdk.client import LabelStudio
 
+    check_label_studio_api_key(api_key)
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
 
     with output_file.open("wb") as f:
