@@ -1,10 +1,10 @@
 # Labelr
 
-Labelr a command line interface that aims to provide a set of tools to help data scientists and machine learning engineers to deal with ML data annotation, data preprocessing and format conversion.
+Labelr a command line interface that aims at providing a set of tools to help data scientists and machine learning engineers to deal with ML data annotation, data preprocessing and format conversion.
 
 This project started as a way to automate some of the tasks we do at Open Food Facts to manage data at different stages of the machine learning pipeline.
 
-The CLI currently is integrated with Label Studio (for data annotation), Ultralytics (for object detection) and Hugging Face (for model and dataset storage). It only works with some specific tasks (object detection and image classification only for now), but it's meant to be extended to other tasks in the future.
+The CLI currently is integrated with Label Studio (for data annotation), Ultralytics (for object detection), Google Cloud Batch (for training) and  Hugging Face (for model and dataset storage). It only works with some specific tasks (object detection, image classification and image extraction using LVLM for now), but it's meant to be extended to other tasks in the future.
 
 For object detection and image classification models, it currently allows to:
 
@@ -56,15 +56,9 @@ pip install labelr[ultralytics]
 
 To create a Label Studio project, you need to have a Label Studio instance running. Launching a Label Studio instance is out of the scope of this project, but you can follow the instructions on the [Label Studio documentation](https://labelstud.io/guide/install.html).
 
-By default, the CLI will assume you're running Label Studio locally (url: http://127.0.0.1:8080). You can change the URL by setting the `--label-studio-url` CLI option or by providing the URL in the `LABELR_LABEL_STUDIO_URL` environment variable.
+By default, the CLI will assume you're running Label Studio locally (url: http://127.0.0.1:8080). You can change the URL by setting the `--label-studio-url` CLI option or by updating the configuration (see the [Configuration](#configuration) section below for more information).
 
-Labelr also support configuring settings globally using a global config file. To set the Label Studio URL, you can run:
-
-```bash
-labelr config label_studio_url http://127.0.0.1:8080
-```
-
-For all the commands that interact with Label Studio, you need to provide an API key using the `--api-key` CLI option (or through environment variable or the config file). You can get an API key by logging in to the Label Studio instance and going to the Account & Settings page.
+For all the commands that interact with Label Studio, you need to provide an API key using the `--api-key`, or through configuration.
 
 #### Create a project
 
@@ -73,7 +67,7 @@ Once you have a Label Studio instance running, you can create a project easily. 
 For an object detection task, a command allows you to create the configuration file automatically:
 
 ```bash
-labelr ls create-config --labels 'label1' --labels 'label2' --output-file label_config.xml
+labelr ls create-config-file --labels 'label1' --labels 'label2' --output-file label_config.xml
 ```
 
 where `label1` and `label2` are the labels you want to use for the object detection task, and `label_config.xml` is the output file that will contain the configuration.
@@ -129,6 +123,38 @@ The SAM3 model will be automatically downloaded from Hugging Face. [SAM3](https:
 In the command above, `labels` is the list of labels to use for the object detection task (you can add as many labels as you want). You can also provide a `--label-mapping` option in case the names of the label of the model you use for pre-annotation is different from the names configured on your Label Studio project.
 
 
+#### Add `train` and `val` split
+
+In most machine learning projects, you need to split your data into a training and a validation set. Assigning each sample to a split is required before exporting the dataset. To do so, you can use the following command:
+
+```bash
+labelr ls add-split --train-split 0.8 --project-id PROJECT_ID
+```
+
+For each task in the dataset, it randomly assigns 80% of the samples to the `train` split and 20% to the `val` split. The split is saved in the task `data` in the `split` field.
+
+ You can change the train/val ratio by changing the `--train-split` option. You can also assign specific sample to a split. For example you can assign the `train` split to specific tasks by storinh the task IDs in a file `task_ids.txt` and by running the following command: 
+
+```bash
+labelr ls add-split --split-name train --task-id-file task_ids.txt --project-id PROJECT_ID
+```
+
+#### Performing sanity checks on the dataset
+
+Labelr can detect automatically some common data quality issues:
+
+- broken image URLs
+- duplicate tasks (based on the image hash)
+- multiple annotations
+
+To perform a check, run:
+
+```bash
+labelr ls check-dataset --project-id PROJECT_ID
+```
+
+The command will report the issues found. It is non-destructive by default, but you can use the `--delete-missing-images` and `--delete-duplicate-images` options to delete the tasks with missing images or duplicates respectively.
+
 #### Export the data
 
 Once the data is annotated, you can export it to a Hugging Face dataset or to local disk (Ultralytics format). To export it to disk, use the following command:
@@ -165,3 +191,10 @@ The following variables are currently supported:
 
 - `label_studio_url`: URL of the Label Studio server. Can also be set with the `LABELR_LABEL_STUDIO_URL` environment variable.
 - `label_studio_api_key`: API key for Label Studio. Can also be set with the `LABELR_LABEL_STUDIO_API_KEY` environment variable.
+
+
+Labelr supports configuring settings in config file through the `config` command. For example, to set the Label Studio URL, you can run:
+
+```bash
+labelr config label_studio_url http://127.0.0.1:8080
+```
