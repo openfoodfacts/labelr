@@ -254,6 +254,7 @@ def annotate_from_prediction(
 
 class PredictorBackend(enum.StrEnum):
     ultralytics = enum.auto()
+    ultralytics_yolo_world = enum.auto()
     ultralytics_sam3 = enum.auto()
 
 
@@ -286,10 +287,15 @@ def add_prediction(
         str | None,
         typer.Option(
             "--model",
-            help="Name of the object detection model to run or "
-            "of the Ultralytics zero-shot model to run. If using Ultralytics backend "
-            "and no model name is provided, the default is yolov8x-worldv2.pt. "
-            "If using ultralytics_sam3 backend, the model name is ignored.",
+            help="Name or path of the object detection model to run. How this is used depends "
+            "on the backend. If using `ultralytics` backend, the option is required and is the "
+            "name of the model to download from the Ultralytics model zoo or the path to a local "
+            "model. "
+            "If using `ultralytics_yolo_world` backend, this is optional and is the name of the "
+            "`yolo-world` model to download from the Ultralytics model zoo or the path to a local "
+            "model (Defaults: `yolov8x-worldv2.pt`). "
+            "If using `ultralytics_sam3` backend, this option is ignored, as there is a single model. "
+            "The model is downloaded automatically from Hugging Face.",
         ),
     ] = None,
     skip_existing: Annotated[
@@ -374,13 +380,12 @@ def add_prediction(
     if dry_run:
         logger.info("** Dry run mode enabled **")
 
-    if model_name not in YOLO_WORLD_MODELS and backend == PredictorBackend.ultralytics:
-        if not Path(model_name).is_file():
-            raise typer.BadParameter(
-                f"Model file '{model_name}' not found. When the backend is `ultralytics` "
-                "and the --model does not refer to a YOLO-World model, --model is expected "
-                "to be a local Ultralytics model file (`.pt`)."
-            )
+    if backend == PredictorBackend.ultralytics and not Path(model_name).is_file():
+        raise typer.BadParameter(
+            f"Model file '{model_name}' not found. When the backend is `ultralytics` "
+            "and the --model does not refer to a YOLO-World model, --model is expected "
+            "to be a local Ultralytics model file (`.pt`)."
+        )
 
     logger.info(
         "backend: %s, model_name: %s, labels: %s, threshold: %s, label mapping: %s",
@@ -392,11 +397,11 @@ def add_prediction(
     )
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
 
-    if backend == PredictorBackend.ultralytics:
+    if backend in (
+        PredictorBackend.ultralytics,
+        PredictorBackend.ultralytics_yolo_world,
+    ):
         from ultralytics import YOLO, YOLOWorld
-
-        if model_name is None:
-            model_name = "yolov8x-worldv2.pt"
 
         if labels is None:
             raise typer.BadParameter("Labels are required for `ultralytics` backend")
@@ -404,9 +409,12 @@ def add_prediction(
         if threshold is None:
             threshold = 0.1
 
-        model = YOLO(model_name)
-        if model_name in YOLO_WORLD_MODELS:
-            model = typing.cast(YOLOWorld, model)
+        if backend == PredictorBackend.ultralytics:
+            model = YOLO(model_name)
+        elif backend == PredictorBackend.ultralytics_yolo_world:
+            if model_name is None:
+                model_name = "yolov8x-worldv2.pt"
+            model = YOLOWorld(model_name)
             model.set_classes(labels)
 
     elif backend == PredictorBackend.ultralytics_sam3:
@@ -445,7 +453,10 @@ def add_prediction(
                 get_image_from_url(image_url, error_raise=error_raise),
             )
             min_score = None
-            if backend == PredictorBackend.ultralytics:
+            if backend in (
+                PredictorBackend.ultralytics,
+                PredictorBackend.ultralytics_yolo_world,
+            ):
                 predict_kwargs = {
                     "conf": threshold,
                     "max_det": max_det,
