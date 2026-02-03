@@ -255,7 +255,6 @@ def annotate_from_prediction(
 class PredictorBackend(enum.StrEnum):
     ultralytics = enum.auto()
     ultralytics_sam3 = enum.auto()
-    robotoff = enum.auto()
 
 
 YOLO_WORLD_MODELS = (
@@ -287,7 +286,7 @@ def add_prediction(
         str | None,
         typer.Option(
             "--model",
-            help="Name of the object detection model to run (for Robotoff server) or "
+            help="Name of the object detection model to run or "
             "of the Ultralytics zero-shot model to run. If using Ultralytics backend "
             "and no model name is provided, the default is yolov8x-worldv2.pt. "
             "If using ultralytics_sam3 backend, the model name is ignored.",
@@ -299,17 +298,10 @@ def add_prediction(
             help="Skip tasks that already have predictions",
         ),
     ] = True,
-    server_url: Annotated[
-        str | None,
-        typer.Option(
-            help="The Robotoff URL if the backend is robotoff. If the backend is "
-            "different than robotoff, this option is ignored."
-        ),
-    ] = "https://robotoff.openfoodfacts.org",
     backend: Annotated[
         PredictorBackend,
         typer.Option(
-            help="The prediction backend, possible options are: `ultralytics`, `ultralytics_sam3` and `robotoff`"
+            help="The prediction backend, possible options are: `ultralytics` or `ultralytics_sam3`"
         ),
     ] = PredictorBackend.ultralytics,
     labels: Annotated[
@@ -333,9 +325,8 @@ def add_prediction(
     threshold: Annotated[
         float | None,
         typer.Option(
-            help="Confidence threshold for selecting bounding boxes. The default is 0.3 "
-            "for robotoff backend, 0.1 for ultralytics backend and 0.25 for "
-            "ultralytics_sam3 backend."
+            help="Confidence threshold for selecting bounding boxes. The default is 0.1 for "
+            "ultralytics backend and 0.25 for ultralytics_sam3 backend."
         ),
     ] = None,
     max_det: Annotated[int, typer.Option(help="Maximum numbers of detections")] = 300,
@@ -369,13 +360,10 @@ def add_prediction(
     import tqdm
     from huggingface_hub import hf_hub_download
     from label_studio_sdk.client import LabelStudio
-    from openfoodfacts.utils import get_image_from_url, http_session
+    from openfoodfacts.utils import get_image_from_url
     from PIL import Image
 
-    from ..annotate import (
-        format_annotation_results_from_robotoff,
-        format_annotation_results_from_ultralytics,
-    )
+    from ..annotate import format_annotation_results_from_ultralytics
 
     check_label_studio_api_key(api_key)
 
@@ -444,13 +432,6 @@ def add_prediction(
         if imgsz is not None:
             overrides["imgsz"] = imgsz
         model = SAM3SemanticPredictor(overrides=overrides)
-    elif backend == PredictorBackend.robotoff:
-        if server_url is None:
-            raise typer.BadParameter("--server-url is required for Robotoff backend")
-
-        if threshold is None:
-            threshold = 0.1
-            server_url = server_url.rstrip("/")
     else:
         raise typer.BadParameter(f"Unsupported backend: {backend}")
 
@@ -483,23 +464,6 @@ def add_prediction(
                     results, labels, label_mapping_dict
                 )
                 min_score = min(results.boxes.conf.tolist(), default=None)
-            elif backend == PredictorBackend.robotoff:
-                r = http_session.get(
-                    f"{server_url}/api/v1/images/predict",
-                    params={
-                        "models": model_name,
-                        "output_image": 0,
-                        "image_url": image_url,
-                    },
-                )
-                r.raise_for_status()
-                response = r.json()
-                label_studio_result = format_annotation_results_from_robotoff(
-                    response["predictions"][model_name],
-                    image.width,
-                    image.height,
-                    label_mapping_dict,
-                )
             if dry_run:
                 logger.info("image_url: %s", image_url)
                 logger.info("result: %s", label_studio_result)

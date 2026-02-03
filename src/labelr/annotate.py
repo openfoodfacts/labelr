@@ -1,66 +1,15 @@
 import random
 import string
 
-from openfoodfacts.types import JSONType
 from openfoodfacts.utils import get_logger
+
+from ultralytics import Results
 
 logger = get_logger(__name__)
 
 
-def format_annotation_results_from_robotoff(
-    objects: list[JSONType],
-    image_width: int,
-    image_height: int,
-    label_mapping: dict[str, str] | None = None,
-) -> list[JSONType]:
-    """Format annotation results from Robotoff prediction endpoint into
-    Label Studio format."""
-    annotation_results = []
-    for object_ in objects:
-        bounding_box = object_["bounding_box"]
-        label_name = object_["label"]
-
-        if label_mapping:
-            label_name = label_mapping.get(label_name, label_name)
-
-        # These are relative coordinates (between 0.0 and 1.0)
-        y_min, x_min, y_max, x_max = bounding_box
-        # Make sure the coordinates are within the image boundaries,
-        # and convert them to percentages
-        y_min = min(max(0, y_min), 1.0) * 100
-        x_min = min(max(0, x_min), 1.0) * 100
-        y_max = min(max(0, y_max), 1.0) * 100
-        x_max = min(max(0, x_max), 1.0) * 100
-        x = x_min
-        y = y_min
-        width = x_max - x_min
-        height = y_max - y_min
-
-        id_ = generate_id()
-        annotation_results.append(
-            {
-                "id": id_,
-                "type": "rectanglelabels",
-                "from_name": "label",
-                "to_name": "image",
-                "original_width": image_width,
-                "original_height": image_height,
-                "image_rotation": 0,
-                "value": {
-                    "rotation": 0,
-                    "x": x,
-                    "y": y,
-                    "width": width,
-                    "height": height,
-                    "rectanglelabels": [label_name],
-                },
-            },
-        )
-    return annotation_results
-
-
 def format_annotation_results_from_ultralytics(
-    results: "Results",
+    results: Results,
     labels: list[str],
     label_mapping: dict[str, str] | None = None,
 ) -> list[dict]:
