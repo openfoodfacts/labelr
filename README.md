@@ -42,12 +42,12 @@ We recommend to install the CLI in a virtual environment. You can either use pip
 
 There are two optional dependencies that you can install to use the CLI:
 - `ultralytics`: pre-annotate object detection datasets with an ultralytics model (yolo, yolo-world)
-- `triton`: pre-annotate object detection datasets using a model served by a Triton inference server
+- `fiftyone`: visualize the model predictions and compare them with the ground truth, using FiftyOne.
 
-To install the optional dependencies, you can run:
+To install the ultralytics optional dependency, you can run:
 
 ```bash
-pip install labelr[ultralytics,triton]
+pip install labelr[ultralytics]
 ```
 
 ## Usage
@@ -56,9 +56,15 @@ pip install labelr[ultralytics,triton]
 
 To create a Label Studio project, you need to have a Label Studio instance running. Launching a Label Studio instance is out of the scope of this project, but you can follow the instructions on the [Label Studio documentation](https://labelstud.io/guide/install.html).
 
-By default, the CLI will use Open Food Facts Label Studio instance, but you can change the URL by setting the `--label-studio-url` CLI option.
+By default, the CLI will assume you're running Label Studio locally (url: http://127.0.0.1:8080). You can change the URL by setting the `--label-studio-url` CLI option or by providing the URL in the `LABELR_LABEL_STUDIO_URL` environment variable.
 
-For all the commands that interact with Label Studio, you need to provide an API key using the `--api-key` CLI option. You can get an API key by logging in to the Label Studio instance and going to the Account & Settings page.
+Labelr also support configuring settings globally using a global config file. To set the Label Studio URL, you can run:
+
+```bash
+labelr config label_studio_url http://127.0.0.1:8080
+```
+
+For all the commands that interact with Label Studio, you need to provide an API key using the `--api-key` CLI option (or through environment variable or the config file). You can get an API key by logging in to the Label Studio instance and going to the Account & Settings page.
 
 #### Create a project
 
@@ -104,22 +110,24 @@ where `PROJECT_ID` is the ID of the project you created.
 
 #### Pre-annotate the data
 
-To accelerate annotation, you can pre-annotate the images with an object detection model. We support two pre-annotation backends:
+To accelerate annotation, you can pre-annotate the images with an object detection model. We support three pre-annotation backends:
 
-- Triton: you need to have a Triton server running with a model that supports object detection. The object detection model is expected to be a yolo-v8 model. You can set the URL of the Triton server with the `--triton-url` CLI option.
+- `ultralytics`: use your own model or [Yolo-World](https://docs.ultralytics.com/models/yolo-world/), a zero-shot model that can detect any object using a text description of the object. You can specify the path or the name of the model with the `--model-name` option. If no model name is provided, the `yolov8x-worldv2.pt` model (Yolo-World) is used.
+- `ultralytics_sam3`: use [SAM3](https://docs.ultralytics.com/models/sam-3/), another zero-shot model. We advice to use this backend, as it's the most accurate. The `--model-name` option is ignored when this backend is used.
+- `robotoff`: the ML backend of Open Food Facts (specific to Open Food Facts projects).
 
-- Ultralytics: you can use the [Yolo-World model from Ultralytics](https://github.com/ultralytics/ultralytics), Ultralytics should be installed in the same virtualenv.
+When using `ultralytics` or `ultralytics_sam3`, make sure you installed the labelr package with the `ultralytics` extra.
 
-To pre-annotate the data with Triton, use the following command:
+To pre-annotate the data with Ultralytics, use the following command:
 
 ```bash
-labelr ls add-prediction --project-id PROJECT_ID --backend ultralytics --labels 'product' --labels 'price tag' --label-mapping '{"price tag": "price-tag"}'
+labelr ls add-prediction --project-id PROJECT_ID --backend ultralytics_sam3 --labels 'product' --labels 'price tag' --label-mapping '{"price tag": "price-tag"}'
 ```
 
-where `labels` is the list of labels to use for the object detection task (you can add as many labels as you want).
-For Ultralytics, you can also provide a `--label-mapping` option to map the labels from the model to the labels of the project.
+The SAM3 model will be automatically downloaded from Hugging Face. [SAM3](https://huggingface.co/facebook/sam3) is a gated model, it requires a permission before getting access to the model.Make sure you were granted the access before launching the command.
 
-By default, for Ultralytics, the `yolov8x-worldv2.pt` model is used. You can change the model by setting the `--model-name` CLI option.
+In the command above, `labels` is the list of labels to use for the object detection task (you can add as many labels as you want). You can also provide a `--label-mapping` option in case the names of the label of the model you use for pre-annotation is different from the names configured on your Label Studio project.
+
 
 #### Export the data
 
@@ -142,3 +150,18 @@ where `REPO_ID` is the ID of the Hugging Face repository where the dataset will 
 ### Lauch training jobs
 
 You can also launch training jobs for YOLO object detection models using datasets hosted on Hugging Face. Please refer to the [train-yolo package README](packages/train-yolo/README.md) for more details on how to use this feature.
+
+## Configuration
+
+Some Labelr settings can be configured using a configuration file or through environment variables. The configuration file is located at `~/.config/labelr/config.json`.
+
+By order of precedence, the configuration is loaded from:
+
+- CLI command option
+- environment variable
+- file configuration 
+
+The following variables are currently supported:
+
+- `label_studio_url`: URL of the Label Studio server. Can also be set with the `LABELR_LABEL_STUDIO_URL` environment variable.
+- `label_studio_api_key`: API key for Label Studio. Can also be set with the `LABELR_LABEL_STUDIO_API_KEY` environment variable.
