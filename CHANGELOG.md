@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.11.1](https://github.com/openfoodfacts/labelr/compare/v0.11.0...v0.11.1) (2026-02-03)
+
+
+### Bug Fixes
+
+* **add-prediction:** don't process image if null ([316f20b](https://github.com/openfoodfacts/labelr/commit/316f20b1c9a9e56ba21fa874dd3dced35adf2e1d))
+* fix configuration path ([48cbc79](https://github.com/openfoodfacts/labelr/commit/48cbc79845da4aca7ed6a05e542294682a9bc062))
+* rename --model-name into --model ([8dce4b9](https://github.com/openfoodfacts/labelr/commit/8dce4b9fd94784e630df913c55ee6ad26d594615))
+
+
+### Technical
+
+* **label-studio:** add ultralytics_yolo_world backend ([51d3863](https://github.com/openfoodfacts/labelr/commit/51d386315bd7a897229723e6878b0cc47dcfb5a9))
+* **label-studio:** remove robotoff backend in add-prediction ([4df3dbb](https://github.com/openfoodfacts/labelr/commit/4df3dbb47b2a84d7ed4574b4764652b197c7668c))
+
 ## [0.11.0](https://github.com/openfoodfacts/labelr/compare/v0.10.0...v0.11.0) (2026-02-03)
 
 
