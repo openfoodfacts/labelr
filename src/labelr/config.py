@@ -3,7 +3,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 import os
 
-CONFIG_PATH = Path("~").expanduser() / ".config/.labelr/config.json"
+CONFIG_PATH = Path("~").expanduser() / ".config/labelr/config.json"
 
 
 # validate_assignment allows to validate the model everytime it is updated
