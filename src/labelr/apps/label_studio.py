@@ -62,7 +62,9 @@ def import_data(
     label_studio_url: Annotated[
         str, typer.Option(help=typer_description.LABEL_STUDIO_URL)
     ] = config.label_studio_url,
-    batch_size: int = 25,
+    batch_size: Annotated[
+        int, typer.Option(help="Number of tasks to import as a single batch")
+    ] = 25,
 ):
     """Import tasks from a dataset file to a Label Studio project.
 
@@ -116,17 +118,6 @@ def add_split(
         float, typer.Option(help="fraction of samples to add in train split")
     ],
     project_id: Annotated[int, typer.Option(help="Label Studio project ID")],
-    api_key: Annotated[
-        str, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
-    ] = config.label_studio_api_key,
-    split_name: Annotated[
-        Optional[str],
-        typer.Option(
-            help="name of the split associated "
-            "with the task ID file. If --task-id-file is not provided, "
-            "this field is ignored."
-        ),
-    ] = None,
     train_split_name: Annotated[
         str,
         typer.Option(help="name of the train split"),
@@ -136,8 +127,16 @@ def add_split(
         typer.Option(help="name of the validation split"),
     ] = "val",
     task_id_file: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(help="path of a text file containing IDs of samples"),
+    ] = None,
+    split_name: Annotated[
+        str | None,
+        typer.Option(
+            help="name of the split associated "
+            "with the task ID file. If --task-id-file is not provided, "
+            "this field is ignored."
+        ),
     ] = None,
     overwrite: Annotated[
         bool, typer.Option(help="overwrite existing split field")
@@ -149,6 +148,9 @@ def add_split(
             "to filter the task to process."
         ),
     ] = None,
+    api_key: Annotated[
+        str, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
+    ] = config.label_studio_api_key,
     label_studio_url: Annotated[
         str, typer.Option(help=typer_description.LABEL_STUDIO_URL)
     ] = config.label_studio_url,
@@ -159,7 +161,7 @@ def add_split(
 
     If `--task-id-file` is provided, it should contain a list of task IDs,
     one per line. The split field of these tasks will be updated to the value
-    of `--split-name`.
+    of `--split-name`. The `--train-split` value is ignored in this case.
 
     If `--task-id-file` is not provided, the split field of all tasks in the
     project will be updated based on the `train_split` probability.
