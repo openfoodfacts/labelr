@@ -66,7 +66,7 @@ def predict(
 def config(name: str, value: str):
     """Set a Labelr configuration value.
 
-    The configuration is stored in a JSON file at ~/.config/.labelr/config.json.
+    The configuration is stored in a JSON file at ~/.config/labelr/config.json.
     """
     typer.echo(f"Set '{name}' to '{value}'")
     _config.set_file_config(name, value)

@@ -16,6 +16,9 @@ class LabelrConfig(BaseModel, validate_assignment=True):
         default=None,
         description="API key for Label Studio.",
     )
+    label_studio_project_id: int | None = Field(
+        default=None, description="ID of the Label Studio project to use"
+    )
 
 
 def get_config() -> LabelrConfig:
@@ -25,7 +28,7 @@ def get_config() -> LabelrConfig:
     - Environment variables
     - JSON file (see below)
 
-    The configuration is stored in a JSON file at ~/.config/.labelr/config.json.
+    The configuration is stored in a JSON file at ~/.config/labelr/config.json.
 
     The following environment variables are supported:
     - LABELR_LABEL_STUDIO_URL
@@ -38,6 +41,10 @@ def get_config() -> LabelrConfig:
             config.label_studio_url = os.environ["LABELR_LABEL_STUDIO_URL"]
         if "LABELR_LABEL_STUDIO_API_KEY" in os.environ:
             config.label_studio_api_key = os.environ["LABELR_LABEL_STUDIO_API_KEY"]
+        if "LABELR_LABEL_STUDIO_PROJECT_ID" in os.environ:
+            config.label_studio_project_id = os.environ[
+                "LABELR_LABEL_STUDIO_PROJECT_ID"
+            ]
         return config
     else:
         return LabelrConfig()
@@ -46,7 +53,7 @@ def get_config() -> LabelrConfig:
 def set_file_config(key: str, value: str):
     """Update the labelr configuration.
 
-    The configuration is stored in a JSON file at ~/.config/.labelr/config.json.
+    The configuration is stored in a JSON file at ~/.config/labelr/config.json.
     """
     config = get_config()
     setattr(config, key, value)
