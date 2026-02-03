@@ -448,10 +448,9 @@ def add_prediction(
     ):
         if not (skip_existing and task.total_predictions > 0):
             image_url = task.data["image_url"]
-            image = typing.cast(
-                Image.Image,
-                get_image_from_url(image_url, error_raise=error_raise),
-            )
+            image = get_image_from_url(image_url, error_raise=error_raise)
+            if image is None:
+                continue
             min_score = None
             if backend in (
                 PredictorBackend.ultralytics,
