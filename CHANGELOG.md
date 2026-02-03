@@ -1,5 +1,53 @@
 # Changelog
 
+## [0.11.0](https://github.com/openfoodfacts/labelr/compare/v0.10.0...v0.11.0) (2026-02-03)
+
+
+### Features
+
+* **datasets:** add ds update-llm-ds command ([7c64e1f](https://github.com/openfoodfacts/labelr/commit/7c64e1faf9e56616c94f20a2087874e9c0b2764f))
+* **directus:** add directus subcommand ([fbc8e9d](https://github.com/openfoodfacts/labelr/commit/fbc8e9de36bf4fdd71681094236178edd5575721))
+* **export:** add option to select view to use when exporting from ls ([797e32c](https://github.com/openfoodfacts/labelr/commit/797e32c5542fd4bc5c8dde4e3ebdbccd62eeda06))
+* improve export command ([b9710ee](https://github.com/openfoodfacts/labelr/commit/b9710ee0193b6ae316f14e4b7c9b19dc81677d04))
+* improve ls check command ([5665655](https://github.com/openfoodfacts/labelr/commit/5665655d876ffdf56433319b00aab1963fd7a8ba))
+* **label-studio:** add support for pre-annotation using sam3 ([2dd8cac](https://github.com/openfoodfacts/labelr/commit/2dd8cacf0dfd6d59e9950efc7affb48a5fb44fbe))
+* **label-studio:** improve check-dataset command ([6507cea](https://github.com/openfoodfacts/labelr/commit/6507cea319f12bf39b4da8b7a6dc9c6b256576c0))
+* **labelr:** improve labelr configuration ([1f6f564](https://github.com/openfoodfacts/labelr/commit/1f6f564bb73d3fa86bfa63a172462ef6bac06413))
+* **ls:** add a command to dump a dataset as a JSONL file ([f449fcc](https://github.com/openfoodfacts/labelr/commit/f449fcceec194c55013adbafd63faccd23f23b61))
+* **train-unsloth:** improve train command ([6f0f06e](https://github.com/openfoodfacts/labelr/commit/6f0f06e058de36b30dc960515dce3a657abe2876))
+
+
+### Bug Fixes
+
+* add missing import ([a8ae6b9](https://github.com/openfoodfacts/labelr/commit/a8ae6b9bd9a2815338e4111f549d6d35d9ec09a2))
+* **add-split:** add optionto filter by view ID ([6dd8211](https://github.com/openfoodfacts/labelr/commit/6dd82111ba1318a8d7653038c0cbb0b9c2a7ec98))
+* **add-split:** fix bug in add-split ([5ffe800](https://github.com/openfoodfacts/labelr/commit/5ffe800dd702ff017f5338c890f98d2ad0e6cf3d))
+* **export:** always rotate image according to EXIF & resize images ([bdc0942](https://github.com/openfoodfacts/labelr/commit/bdc09421d2ac4d72e015a3ca60abe3dc959ae0fa))
+* **labelr:** check JSON schema to make sure all fields are required ([a0b798b](https://github.com/openfoodfacts/labelr/commit/a0b798bb5dd582c403b76469aa084763d6da4400))
+* **train-unsloth:** add new options to validate command ([f5e2bb1](https://github.com/openfoodfacts/labelr/commit/f5e2bb165ba430d51e4493c26326372fa3f1ad9c))
+* **train-unsloth:** adding possibility to set-up revision for lora weights ([1a592a8](https://github.com/openfoodfacts/labelr/commit/1a592a86fa9dced1327b1a7288e1b62ea751d508))
+* **train-unsloth:** disable dataset shuffling by default ([bac2f9d](https://github.com/openfoodfacts/labelr/commit/bac2f9d09731dbcf5ff40286c4081a4f43b44d39))
+* **train-unsloth:** improve dataset loading in validate command ([148c963](https://github.com/openfoodfacts/labelr/commit/148c963adac1f29706dedaf75c1062a4119de449))
+* **train-unsloth:** improve QLORA default hyperparameters ([c4aa4fd](https://github.com/openfoodfacts/labelr/commit/c4aa4fdd252765b9b79ce9e1f4a92e4ae2fac40f))
+* **train-unsloth:** improve validate command ([ba1ad8d](https://github.com/openfoodfacts/labelr/commit/ba1ad8ddb0ef7c5f63067ee463a555c94d887817))
+* **train-unsloth:** remove empty package ([22017cb](https://github.com/openfoodfacts/labelr/commit/22017cb6e1e1ee054620a6efa7ae6b6a9f41d4d9))
+* **train-unsloth:** update lora-dropout default value ([10331aa](https://github.com/openfoodfacts/labelr/commit/10331aae527afa3c82207bb01b9a5f45afbc8b74))
+
+
+### Technical
+
+* add missing docstring ([e340fd3](https://github.com/openfoodfacts/labelr/commit/e340fd33bef7eabe21eb60c6a308e2afc84a33d8))
+* add missing documentation for some commands ([8145ae6](https://github.com/openfoodfacts/labelr/commit/8145ae6f0a43d7fd20a17f7b3d93d68cff5157de))
+* **deps:** add diskcache as dependency ([0cbb8f7](https://github.com/openfoodfacts/labelr/commit/0cbb8f74843d892ab2d47ab2ee4cd5714d9043ae))
+* improve inline documentation for some command ([fd9fb70](https://github.com/openfoodfacts/labelr/commit/fd9fb70001870f64fe32c2303126d4751bc61eda))
+* improve README.md ([648342a](https://github.com/openfoodfacts/labelr/commit/648342a73ca6014aad000a0795da47c099121225))
+* **train-unsloth:** add .dockerignore ([d310358](https://github.com/openfoodfacts/labelr/commit/d310358b7c40deb245300f956e7021a7507b1b8b))
+* **train-unsloth:** add link for vLLM reproducibility ([4494914](https://github.com/openfoodfacts/labelr/commit/44949143749e35a6b70e8aa4e7337f36d5d50868))
+* **train-unsloth:** add README.md ([e0f707e](https://github.com/openfoodfacts/labelr/commit/e0f707ee554edd04143b948b97795bf2c32d3149))
+* **train-unsloth:** improve Dockerfile ([530cfd1](https://github.com/openfoodfacts/labelr/commit/530cfd155d4b633eeab5eb302348348e4a524120))
+* **train-unsloth:** remove useless ellipsis (...) ([86f2d6f](https://github.com/openfoodfacts/labelr/commit/86f2d6f29b576fa50b4827d96d910c3d15163f79))
+* update uv.lock ([2834353](https://github.com/openfoodfacts/labelr/commit/2834353663a81f0936f6f7bc658605e03233d251))
+
 ## [0.10.0](https://github.com/openfoodfacts/labelr/compare/v0.9.0...v0.10.0) (2026-01-13)
 
 
