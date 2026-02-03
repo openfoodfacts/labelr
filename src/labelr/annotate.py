@@ -3,7 +3,7 @@ import string
 
 from openfoodfacts.utils import get_logger
 
-from ultralytics import Results
+from ultralytics.engine.results import Results
 
 logger = get_logger(__name__)
 
