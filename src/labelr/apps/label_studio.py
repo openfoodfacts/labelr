@@ -258,6 +258,18 @@ class PredictorBackend(enum.StrEnum):
     robotoff = enum.auto()
 
 
+YOLO_WORLD_MODELS = (
+    "yolov8s-world.pt",
+    "yolov8s-worldv2.pt",
+    "yolov8m-world.pt",
+    "yolov8m-worldv2.pt",
+    "yolov8l-world.pt",
+    "yolov8l-worldv2.pt",
+    "yolov8x-world.pt",
+    "yolov8x-worldv2.pt",
+)
+
+
 @app.command()
 def add_prediction(
     project_id: Annotated[int, typer.Option(help="Label Studio Project ID")],
@@ -274,10 +286,11 @@ def add_prediction(
     model_name: Annotated[
         str | None,
         typer.Option(
+            "--model",
             help="Name of the object detection model to run (for Robotoff server) or "
             "of the Ultralytics zero-shot model to run. If using Ultralytics backend "
             "and no model name is provided, the default is yolov8x-worldv2.pt. "
-            "If using ultralytics_sam3 backend, the model name is ignored."
+            "If using ultralytics_sam3 backend, the model name is ignored.",
         ),
     ] = None,
     skip_existing: Annotated[
@@ -373,6 +386,14 @@ def add_prediction(
     if dry_run:
         logger.info("** Dry run mode enabled **")
 
+    if model_name not in YOLO_WORLD_MODELS and backend == PredictorBackend.ultralytics:
+        if not Path(model_name).is_file():
+            raise typer.BadParameter(
+                f"Model file '{model_name}' not found. When the backend is `ultralytics` "
+                "and the --model does not refer to a YOLO-World model, --model is expected "
+                "to be a local Ultralytics model file (`.pt`)."
+            )
+
     logger.info(
         "backend: %s, model_name: %s, labels: %s, threshold: %s, label mapping: %s",
         backend,
@@ -390,17 +411,16 @@ def add_prediction(
             model_name = "yolov8x-worldv2.pt"
 
         if labels is None:
-            raise typer.BadParameter("Labels are required for Ultralytics backend")
+            raise typer.BadParameter("Labels are required for `ultralytics` backend")
 
         if threshold is None:
             threshold = 0.1
 
         model = YOLO(model_name)
-        if hasattr(model, "set_classes"):
+        if model_name in YOLO_WORLD_MODELS:
             model = typing.cast(YOLOWorld, model)
             model.set_classes(labels)
-        else:
-            logger.warning("The model does not support setting classes directly.")
+
     elif backend == PredictorBackend.ultralytics_sam3:
         from ultralytics.models.sam import SAM3SemanticPredictor
 

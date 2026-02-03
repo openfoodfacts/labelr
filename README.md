@@ -107,7 +107,7 @@ where `PROJECT_ID` is the ID of the project you created.
 To accelerate annotation, you can pre-annotate the images with an object detection model. We support three pre-annotation backends:
 
 - `ultralytics`: use your own model or [Yolo-World](https://docs.ultralytics.com/models/yolo-world/), a zero-shot model that can detect any object using a text description of the object. You can specify the path or the name of the model with the `--model-name` option. If no model name is provided, the `yolov8x-worldv2.pt` model (Yolo-World) is used.
-- `ultralytics_sam3`: use [SAM3](https://docs.ultralytics.com/models/sam-3/), another zero-shot model. We advice to use this backend, as it's the most accurate. The `--model-name` option is ignored when this backend is used.
+- `ultralytics_sam3`: use [SAM3](https://docs.ultralytics.com/models/sam-3/), another zero-shot model. We advice to use this backend, as it's the most accurate. The `--model` option is ignored when this backend is used.
 - `robotoff`: the ML backend of Open Food Facts (specific to Open Food Facts projects).
 
 When using `ultralytics` or `ultralytics_sam3`, make sure you installed the labelr package with the `ultralytics` extra.

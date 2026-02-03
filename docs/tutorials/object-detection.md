@@ -63,7 +63,7 @@ where `labels` is the list of labels to use for the object detection task (you c
 
 If your label name contains spaces or special characters, you can use the `--label-mapping` option to map the labels from the model to the labels of the project (ex: `--label-mapping '{"my label": "my-tag"}'`).
 
-By default, for Ultralytics, the `yolov8x-worldv2.pt` model is used. You can change the model by setting the `--model-name` CLI option.
+By default, for Ultralytics, the `yolov8x-worldv2.pt` model is used. You can change the model by setting the `--model` CLI option.
 
 #### Annotate the data
 
