@@ -50,9 +50,9 @@ def get_config() -> LabelrConfig:
         if "LABELR_LABEL_STUDIO_API_KEY" in os.environ:
             config.label_studio_api_key = os.environ["LABELR_LABEL_STUDIO_API_KEY"]
         if "LABELR_LABEL_STUDIO_PROJECT_ID" in os.environ:
-            config.label_studio_project_id = os.environ[
-                "LABELR_LABEL_STUDIO_PROJECT_ID"
-            ]
+            config.label_studio_project_id = int(
+                os.environ["LABELR_LABEL_STUDIO_PROJECT_ID"]
+            )
         return config
     else:
         return LabelrConfig()
