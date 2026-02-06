@@ -66,7 +66,16 @@ def predict(
 def config(name: str, value: str):
     """Set a Labelr configuration value.
 
-    The configuration is stored in a JSON file at ~/.config/labelr/config.json.
+    Settings can always be overriden using environment variables and command
+    option values. The configuration is stored in a JSON file at
+    ~/.config/labelr/config.json.
+
+    The following settings can be set:
+
+    - `label_studio_url`: URL of the Label Studio server.
+    - `label_studio_api_key`: API key for Label Studio.
+    - `project_id`: the ID of the label studio project.
+
     """
     typer.echo(f"Set '{name}' to '{value}'")
     _config.set_file_config(name, value)
