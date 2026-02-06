@@ -449,6 +449,7 @@ def add_prediction(
                 label_studio_result = format_annotation_results_from_ultralytics(
                     results, labels, label_mapping_dict
                 )
+                min_score = min(results.boxes.conf.tolist(), default=None)
             elif backend == PredictorBackend.ultralytics_sam3:
                 model.set_image(image)
                 results = model(text=labels)[0]
