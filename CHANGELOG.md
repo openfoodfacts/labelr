@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.12.1](https://github.com/openfoodfacts/labelr/compare/v0.12.0...v0.12.1) (2026-02-06)
+
+
+### Bug Fixes
+
+* **add-prediction:** add minimum score for yolo models ([7984280](https://github.com/openfoodfacts/labelr/commit/79842804b9119b5e08265714858862c07492d189))
+* fix typing error in delete-prediction command ([d4a1e4e](https://github.com/openfoodfacts/labelr/commit/d4a1e4ee05530e17478ce922efcad474e828605c))
+
+
+### Technical
+
+* update uv.lock ([dc4faf1](https://github.com/openfoodfacts/labelr/commit/dc4faf1a1008d9deb99953a097db68b4801000d4))
+
 ## [0.12.0](https://github.com/openfoodfacts/labelr/compare/v0.11.1...v0.12.0) (2026-02-06)
 
 
