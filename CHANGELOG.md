@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.12.0](https://github.com/openfoodfacts/labelr/compare/v0.11.1...v0.12.0) (2026-02-06)
+
+
+### Features
+
+* add individual bounding box score when pre-labeling ([af0b7f5](https://github.com/openfoodfacts/labelr/commit/af0b7f56c9a5ac1a11086e8ed4262950661687de))
+* allow to set globally Label Studio project ID ([124a562](https://github.com/openfoodfacts/labelr/commit/124a562807eb644fd24b320b53bae78e6912e3bf))
+* **ls:** add a command to delete predictions ([d5a7da8](https://github.com/openfoodfacts/labelr/commit/d5a7da8e467e7a0d49ca21e1c9132b84415b896d))
+
+
+### Bug Fixes
+
+* **add-prediction:** make --model-version mandatory ([6601149](https://github.com/openfoodfacts/labelr/commit/660114971ebe239389e1568d1e326bde2cb8cbbf))
+* fix typing error ([7c9089a](https://github.com/openfoodfacts/labelr/commit/7c9089a67b0607eb519ebbc2380131148d902227))
+* fix wrong import ([7156ebc](https://github.com/openfoodfacts/labelr/commit/7156ebccbe06157a1b99d30c99fb522f11fcfa99))
+* update commands to use project ID from config ([d9dfc4c](https://github.com/openfoodfacts/labelr/commit/d9dfc4c60bfdedc40aaa08dbe7f2b510c32132eb))
+
+
+### Technical
+
+* **deps:** update uv.lock ([d78aaf2](https://github.com/openfoodfacts/labelr/commit/d78aaf237f23dd31265625083a8763a24c381406))
+* improve labelr config command description ([9a31a6c](https://github.com/openfoodfacts/labelr/commit/9a31a6c6723240871d2756f25399e0ca84a2ea5b))
+* improve README.md ([7054b5d](https://github.com/openfoodfacts/labelr/commit/7054b5d9b28ca50d8e6783808f15266e9e57f356))
+
 ## [0.11.1](https://github.com/openfoodfacts/labelr/compare/v0.11.0...v0.11.1) (2026-02-03)
 
 
