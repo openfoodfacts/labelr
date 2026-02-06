@@ -471,17 +471,17 @@ def add_prediction(
 
 @app.command()
 def delete_prediction(
-    project_id: Annotated[
-        int, typer.Option(help=typer_description.LABEL_STUDIO_PROJECT_ID)
-    ],
     model_version: Annotated[
         str,
         typer.Option(
             help="The model version associated with the prediction set to delete"
         ),
     ],
+    project_id: Annotated[
+        int | None, typer.Option(help=typer_description.LABEL_STUDIO_PROJECT_ID)
+    ] = config.label_studio_project_id,
     api_key: Annotated[
-        str, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
+        str | None, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
     ] = config.label_studio_api_key,
     label_studio_url: Annotated[
         str, typer.Option(help=typer_description.LABEL_STUDIO_URL)
