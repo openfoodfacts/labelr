@@ -17,6 +17,7 @@ def format_annotation_results_from_ultralytics(
     orig_height, orig_width = results.orig_shape
     boxes = results.boxes
     classes = boxes.cls.tolist()
+    scores = boxes.conf.tolist()
     for i, xyxyn in enumerate(boxes.xyxyn):
         # Boxes found.
         if len(xyxyn) > 0:
@@ -29,6 +30,12 @@ def format_annotation_results_from_ultralytics(
             height = y2 - y1
             label_id = int(classes[i])
             label_name = labels[label_id]
+            # Undocumented Label Studio feature, but we can add the individual bounding box score:
+            # https://github.com/HumanSignal/label-studio/issues/2944#issuecomment-1249943187
+            # This allows to:
+            # - display each individual bounding score
+            # - find tasks for which the model is not-confident using Labelr (to be implemented)
+            score = scores[i]
             if label_mapping:
                 label_name = label_mapping.get(label_name, label_name)
             annotation_results.append(
@@ -40,6 +47,7 @@ def format_annotation_results_from_ultralytics(
                     "original_width": orig_width,
                     "original_height": orig_height,
                     "image_rotation": 0,
+                    "score": score,
                     "value": {
                         "rotation": 0,
                         "x": x1,
