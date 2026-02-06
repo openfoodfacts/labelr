@@ -191,6 +191,7 @@ The following variables are currently supported:
 
 - `label_studio_url`: URL of the Label Studio server. Can also be set with the `LABELR_LABEL_STUDIO_URL` environment variable.
 - `label_studio_api_key`: API key for Label Studio. Can also be set with the `LABELR_LABEL_STUDIO_API_KEY` environment variable.
+- `project_id`: the ID of the label studio project.
 
 
 Labelr supports configuring settings in config file through the `config` command. For example, to set the Label Studio URL, you can run:
