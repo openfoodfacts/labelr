@@ -255,6 +255,13 @@ YOLO_WORLD_MODELS = (
 
 @app.command()
 def add_prediction(
+    model_version: Annotated[
+        str,
+        typer.Option(
+            help="Set the model version field of the prediction sent to Label Studio. "
+            "This is used to track which model generated the prediction."
+        ),
+    ],
     project_id: Annotated[
         int | None, typer.Option(help=typer_description.LABEL_STUDIO_PROJECT_ID)
     ] = config.label_studio_project_id,
@@ -328,13 +335,6 @@ def add_prediction(
         bool,
         typer.Option(help="Raise an error if image download fails"),
     ] = True,
-    model_version: Annotated[
-        str | None,
-        typer.Option(
-            help="Set the model version field of the prediction sent to Label Studio. "
-            "This is used to track which model generated the prediction."
-        ),
-    ] = None,
     imgsz: Annotated[
         int | None,
         typer.Option(
