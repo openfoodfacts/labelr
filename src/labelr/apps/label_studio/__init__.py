@@ -12,7 +12,7 @@ from .prediction import app as prediction_app
 
 app = typer.Typer(no_args_is_help=True)
 app.add_typer(
-    prediction_app, name="prediction", help="Manage predictions on Label Studio"
+    prediction_app, name="prediction", help="Manage predictions on Label Studio."
 )
 
 logger = get_logger(__name__)
