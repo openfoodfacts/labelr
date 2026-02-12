@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from labelr.google_genai import generate_batch_dataset, launch_batch_job
 
-app = typer.Typer()
+app = typer.Typer(no_args_is_help=True)
 
 
 def _check_json_schema(item: JSONType) -> None:

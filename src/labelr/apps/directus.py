@@ -4,7 +4,7 @@ from typing import Annotated
 import requests
 import typer
 
-app = typer.Typer()
+app = typer.Typer(no_args_is_help=True)
 
 
 DEFAULT_DIRECTUS_URL = "http://localhost:8055"

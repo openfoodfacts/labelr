@@ -18,11 +18,11 @@ from labelr.export.object_detection import (
     export_from_ls_to_ultralytics_object_detection,
 )
 
-from . import typer_description
+from .label_studio import typer_description
 from ..config import config, check_required_field
 from ..types import ExportDestination, ExportSource, TaskType
 
-app = typer.Typer()
+app = typer.Typer(no_args_is_help=True)
 
 logger = get_logger(__name__)
 

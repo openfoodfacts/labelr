@@ -12,7 +12,7 @@ from labelr.apps import label_studio as ls_app
 from labelr.apps import train as train_app
 from labelr import config as _config
 
-app = typer.Typer(pretty_exceptions_show_locals=False)
+app = typer.Typer(pretty_exceptions_show_locals=False, no_args_is_help=True)
 
 logger = get_logger()
 

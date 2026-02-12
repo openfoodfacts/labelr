@@ -115,7 +115,7 @@ When using `ultralytics` or `ultralytics_sam3`, make sure you installed the labe
 To pre-annotate the data with Ultralytics, use the following command:
 
 ```bash
-labelr ls add-prediction --project-id PROJECT_ID --backend ultralytics_sam3 --labels 'product' --labels 'price tag' --label-mapping '{"price tag": "price-tag"}'
+labelr ls prediction add --project-id PROJECT_ID --backend ultralytics_sam3 --labels 'product' --labels 'price tag' --label-mapping '{"price tag": "price-tag"}'
 ```
 
 The SAM3 model will be automatically downloaded from Hugging Face. [SAM3](https://huggingface.co/facebook/sam3) is a gated model, it requires a permission before getting access to the model.Make sure you were granted the access before launching the command.

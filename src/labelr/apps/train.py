@@ -2,7 +2,7 @@ import datetime
 
 import typer
 
-app = typer.Typer()
+app = typer.Typer(no_args_is_help=True)
 
 
 AVAILABLE_OBJECT_DETECTION_MODELS = [

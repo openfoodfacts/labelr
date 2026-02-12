@@ -56,7 +56,7 @@ To accelerate annotation, you can pre-annotate the images with an object detecti
 To pre-annotate the data with Triton, use the following command:
 
 ```bash
-labelr ls add-prediction --project-id ${PROJECT_ID} --backend ultralytics --labels 'brand' --labels 'label' --label-mapping '{"price tag": "price-tag"}'
+labelr ls prediction add --project-id ${PROJECT_ID} --backend ultralytics --labels 'brand' --labels 'label' --label-mapping '{"price tag": "price-tag"}'
 ```
 
 where `labels` is the list of labels to use for the object detection task (you can add as many labels as you want).
