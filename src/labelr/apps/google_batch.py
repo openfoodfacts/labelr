@@ -4,13 +4,10 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import typer
-from google.genai.types import JSONSchema as GoogleJSONSchema
-from google.genai.types import Schema as GoogleSchema
 from openfoodfacts import Flavor
 from openfoodfacts.types import JSONType
 from pydantic import BaseModel
 
-from labelr.google_genai import generate_batch_dataset, launch_batch_job
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -52,6 +49,9 @@ def check_json_schema(json_schema: JSONType) -> None:
 def convert_pydantic_model_to_google_schema(schema: type[BaseModel]) -> dict[str, Any]:
     """Google doesn't support natively OpenAPI schemas, so we convert them to
     Google `Schema` (a subset of OpenAPI)."""
+    from google.genai.types import JSONSchema as GoogleJSONSchema
+    from google.genai.types import Schema as GoogleSchema
+
     return GoogleSchema.from_json_schema(
         json_schema=GoogleJSONSchema.model_validate(schema.model_json_schema())
     ).model_dump(mode="json", exclude_none=True, exclude_unset=True)
@@ -136,6 +136,8 @@ def generate_dataset(
 ):
     """Generate a dataset file in JSONL format to be used for batch
     processing, using Gemini Batch Inference."""
+    from labelr.google_genai import generate_batch_dataset
+
     typer.echo(f"Uploading images from '{data_path}' to GCS bucket '{bucket_name}'...")
     typer.echo(f"Writing updated dataset to {output_path}...")
     typer.echo(f"Max concurrent uploads: {max_concurrent_uploads}...")
@@ -193,6 +195,8 @@ def launch_batch_job_command(
     ] = "europe-west4",
 ):
     """Launch a Gemini Batch Inference job."""
+    from labelr.google_genai import launch_batch_job
+
     launch_batch_job(
         run_name=run_name,
         dataset_path=dataset_path,

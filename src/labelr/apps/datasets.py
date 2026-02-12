@@ -12,12 +12,6 @@ import typer
 from openfoodfacts import Flavor
 from openfoodfacts.utils import get_logger
 
-from labelr.export.common import export_from_ultralytics_to_hf
-from labelr.export.object_detection import (
-    export_from_ls_to_hf_object_detection,
-    export_from_ls_to_ultralytics_object_detection,
-)
-
 from .label_studio import typer_description
 from ..config import config, check_required_field
 from ..types import ExportDestination, ExportSource, TaskType
@@ -241,6 +235,11 @@ def export(
     from labelr.export.object_detection import (
         export_from_hf_to_ultralytics_object_detection,
     )
+    from labelr.export.object_detection import (
+        export_from_ls_to_hf_object_detection,
+        export_from_ls_to_ultralytics_object_detection,
+    )
+    from labelr.export.common import export_from_ultralytics_to_hf
 
     check_required_field("--project-id", project_id)
 
