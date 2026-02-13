@@ -130,6 +130,8 @@ def add(
     from huggingface_hub import hf_hub_download
     from label_studio_sdk.client import LabelStudio
     from openfoodfacts.utils import get_image_from_url
+    from PIL.ImageOps import exif_transpose
+    from PIL import Image
 
     from labelr.annotate import format_annotation_results_from_ultralytics
 
@@ -151,12 +153,13 @@ def add(
         )
 
     logger.info(
-        "backend: %s, model_name: %s, labels: %s, threshold: %s, label mapping: %s",
+        "backend: %s, model_name: %s, labels: %s, threshold: %s, label mapping: %s, view ID: %s",
         backend,
         model_name,
         labels,
         threshold,
         label_mapping,
+        view_id,
     )
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
 
@@ -211,9 +214,15 @@ def add(
     ):
         if not (skip_existing and task.total_predictions > 0):
             image_url = task.data["image_url"]
-            image = get_image_from_url(image_url, error_raise=error_raise)
+            image = typing.cast(
+                Image.Image | None,
+                get_image_from_url(image_url, error_raise=error_raise),
+            )
             if image is None:
                 continue
+
+            # Make sure that the image orientation is in accordance with the EXIF metadata
+            exif_transpose(image, in_place=True)
             min_score = None
             if backend in (
                 PredictorBackend.ultralytics,
