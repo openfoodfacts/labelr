@@ -7,7 +7,7 @@ requires-python = ">=3.10"
 dependencies = [
     "datasets>=3.2.0",
     "imagehash>=4.3.1",
-    "label-studio-sdk>=1.0.8",
+    "label-studio-sdk>=2.0.17",
     "more-itertools>=10.5.0",
     "openfoodfacts>=2.9.0",
     "typer>=0.15.1",
