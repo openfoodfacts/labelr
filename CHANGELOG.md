@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.13.0](https://github.com/openfoodfacts/labelr/compare/v0.12.1...v0.13.0) (2026-02-13)
+
+
+### Features
+
+* add a command to add tags to samples ([13883a6](https://github.com/openfoodfacts/labelr/commit/13883a6379c42983171ad721cdc4a0540eb485c2))
+* allow to specify config path using LABELR_CONFIG_PATH envvar ([9620f0f](https://github.com/openfoodfacts/labelr/commit/9620f0f6dc033b0d54e6692002b4e92c0e1a30f6))
+* improve create-dataset-file command ([4bd3419](https://github.com/openfoodfacts/labelr/commit/4bd3419ddd3b7278df69f33a665f9756c81c228b))
+
+
+### Bug Fixes
+
+* fix validation error when setting integer config value ([2fd11b7](https://github.com/openfoodfacts/labelr/commit/2fd11b7a8e253e62bc96f408d997b5244485b25e))
+* **prediction-add:** rotate image using EXIF data before prediction ([1515d87](https://github.com/openfoodfacts/labelr/commit/1515d8759d3aefcd7fa07ff25c835e8b88cbc245))
+
+
+### Technical
+
+* create labelr ls prediction subcommand ([dd242dc](https://github.com/openfoodfacts/labelr/commit/dd242dcfae2024ec7c822679fd6eb759b96839cf))
+* **deps:** upgrade label-studio-sdk package ([681bc33](https://github.com/openfoodfacts/labelr/commit/681bc33d5674b1f5018850487ce2afb276a19875))
+* **deps:** upgrade typer ([fe8c9d2](https://github.com/openfoodfacts/labelr/commit/fe8c9d2d037ad9602b79d35c5c42dfddda992354))
+* improve CLI speed by using eager imports ([86bde4f](https://github.com/openfoodfacts/labelr/commit/86bde4f65c6680c2efdb2260b533a1b2ffa56a36))
+* update command description ([2673e61](https://github.com/openfoodfacts/labelr/commit/2673e6150f5545e25642170d40293993f29d00ac))
+* update uv.lock ([35762eb](https://github.com/openfoodfacts/labelr/commit/35762ebb96cd5dca55a8192202ab34bc5f7c2dc4))
+
 ## [0.12.1](https://github.com/openfoodfacts/labelr/compare/v0.12.0...v0.12.1) (2026-02-06)
 
 
