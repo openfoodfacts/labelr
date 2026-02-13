@@ -191,37 +191,72 @@ def add_split(
 def create_dataset_file(
     input_file: Annotated[
         Path,
-        typer.Option(help="Path to a list of image URLs", exists=True),
+        typer.Option(
+            help="Path to the input file. Can be a text or JSONL file.",
+            exists=True,
+            readable=True,
+            dir_okay=False,
+        ),
     ],
     output_file: Annotated[
-        Path, typer.Option(help="Path to the output JSONL file", exists=False)
+        Path,
+        typer.Option(help="Path to the output JSONL file", exists=False, writable=True),
     ],
 ):
-    """Create a Label Studio object detection dataset file from a list of
-    image URLs.
+    """Create a Label Studio object detection dataset file from file, containing a list
+    a list of image URLs.
+
+    The file can be a plain text file, in which case we expect a single image URL
+    per line. Labelr set the `image_id` field in Label Studio to the URL filename
+    (stripped from its extension).
+
+    The file can also be a JSONL file, with each line of the file being a JSON
+    containing:
+
+    - `image_url` (str, required): the URL of the image
+    - `image_id` (str, optional): the ID of the image, used as value for the
+        `image_id` in Label Studio. If not provided, we use the stemmed name of the
+        file in the URL as `image_id`.
+
+    Other fields in the JSON will be added to the `meta` field of each task.
 
     The output file is a JSONL file. It cannot be imported directly in Label
     Studio (which requires a JSON file as input), the `import-data` command
     should be used to import the generated dataset file.
     """
     from urllib.parse import urlparse
+    import typing
 
+    from PIL import Image
     import tqdm
     from openfoodfacts.images import extract_barcode_from_url, extract_source_from_url
     from openfoodfacts.utils import get_image_from_url
+    from openfoodfacts.types import JSONType
+    import orjson
 
     from labelr.sample.object_detection import format_object_detection_sample_to_ls
 
     logger.info("Loading dataset: %s", input_file)
 
+    jsonl_mode = output_file.name.endswith(".jsonl")
+
     with output_file.open("wt") as f:
         for line in tqdm.tqdm(input_file.open("rt"), desc="images"):
-            url = line.strip()
-            if not url:
-                continue
+            extra_meta: JSONType = {}
+            if jsonl_mode:
+                item = orjson.loads(line)
+                url = item.pop("image_url")
+                image_id = item.pop("image_id", None)
+                extra_meta |= item
+            else:
+                url = line.strip()
+                image_id = None
+                if not url:
+                    continue
 
-            extra_meta = {}
-            image_id = Path(urlparse(url).path).stem
+            if not image_id:
+                image_id = Path(urlparse(url).path).stem
+
             if ".openfoodfacts.org" in url:
                 barcode = extract_barcode_from_url(url)
                 extra_meta["barcode"] = barcode
@@ -229,7 +264,7 @@ def create_dataset_file(
                 extra_meta["off_image_id"] = off_image_id
                 image_id = f"{barcode}_{off_image_id}"
 
-            image = get_image_from_url(url, error_raise=False)
+            image = typing.cast(Image.Image, get_image_from_url(url, error_raise=False))
 
             if image is None:
                 logger.warning("Failed to load image: %s", url)
