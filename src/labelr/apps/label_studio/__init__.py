@@ -9,11 +9,13 @@ from . import typer_description
 from ...config import config, check_required_field
 from .common import check_label_studio_api_key
 from .prediction import app as prediction_app
+from .tag import app as tag_app
 
 app = typer.Typer(no_args_is_help=True)
 app.add_typer(
     prediction_app, name="prediction", help="Manage predictions on Label Studio."
 )
+app.add_typer(tag_app, name="tag", help="Manage tags on tasks.")
 
 logger = get_logger(__name__)
 
