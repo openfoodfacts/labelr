@@ -179,7 +179,7 @@ You can also launch training jobs for YOLO object detection models using dataset
 
 ## Configuration
 
-Some Labelr settings can be configured using a configuration file or through environment variables. The configuration file is located at `~/.config/labelr/config.json`.
+Some Labelr settings can be configured using a configuration file or through environment variables. The configuration file is located at `~/.config/labelr/config.json`. You can configure the location of the config file using the `LABELR_CONFIG_PATH` environment variable.
 
 By order of precedence, the configuration is loaded from:
 

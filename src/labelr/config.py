@@ -5,7 +5,13 @@ import typer
 from pydantic import BaseModel, Field
 import os
 
-CONFIG_PATH = Path("~").expanduser() / ".config/labelr/config.json"
+CONFIG_PATH_STR = os.getenv("LABELR_CONFIG_PATH", None)
+
+CONFIG_PATH = (
+    Path(CONFIG_PATH_STR).expanduser()
+    if CONFIG_PATH_STR
+    else Path("~").expanduser() / ".config/labelr/config.json"
+)
 
 
 def check_required_field(name: str, value: Any):
