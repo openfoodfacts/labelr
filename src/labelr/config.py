@@ -69,8 +69,11 @@ def set_file_config(key: str, value: str):
 
     The configuration is stored in a JSON file at ~/.config/labelr/config.json.
     """
-    config = get_config()
-    setattr(config, key, value)
+    import orjson
+
+    config_json = orjson.loads(CONFIG_PATH.read_bytes())
+    config_json[key] = value
+    config = LabelrConfig.model_validate(config_json)
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     CONFIG_PATH.write_text(config.model_dump_json(indent=2))
 
