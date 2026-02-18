@@ -394,13 +394,13 @@ def annotate_from(
     """
     import tqdm
     from label_studio_sdk.client import LabelStudio
-    from label_studio_sdk.types.task import Task
+    from label_studio_sdk.types import LseTask
 
     check_label_studio_api_key(api_key)
     check_required_field("--project-id", project_id)
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
 
-    task: Task
+    task: LseTask
     for task in tqdm.tqdm(
         ls.tasks.list(project=project_id, fields="all"), desc="tasks"
     ):

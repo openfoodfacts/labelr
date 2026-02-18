@@ -152,7 +152,7 @@ def add_split(
     """
     import random
 
-    from label_studio_sdk import Task
+    from label_studio_sdk.types import LseTask
     from label_studio_sdk.client import LabelStudio
 
     check_label_studio_api_key(api_key)
@@ -168,7 +168,7 @@ def add_split(
         task_ids = task_id_file.read_text().strip().split("\n")
 
     for task in ls.tasks.list(project=project_id, fields="all", view=view_id):
-        task: Task
+        task: LseTask
         task_id = task.id
 
         split = task.data.get("split")
