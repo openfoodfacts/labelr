@@ -327,12 +327,14 @@ def check_dataset(
     is provided and tasks with duplicate images if --delete-duplicate-images
     is provided.
     """
+    import typing
     from label_studio_sdk.client import LabelStudio
 
-    from ..check import check_ls_dataset
+    from labelr.check import check_ls_dataset
 
     check_label_studio_api_key(api_key)
     check_required_field("--project-id", project_id)
+    project_id = typing.cast(int, project_id)
     ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
     check_ls_dataset(
         ls=ls,
