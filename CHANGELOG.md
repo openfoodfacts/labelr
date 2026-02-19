@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.1](https://github.com/openfoodfacts/labelr/compare/v0.13.0...v0.13.1) (2026-02-19)
+
+
+### Bug Fixes
+
+* fix check-dataset command ([ca1ce34](https://github.com/openfoodfacts/labelr/commit/ca1ce3493e2510ccd9c38a7bbb5baad9bf7c0995))
+* fix Task import after label_studio_sdk upgrade ([2225bb1](https://github.com/openfoodfacts/labelr/commit/2225bb16c0c45bbc8eac59beb3a7bfa6844701aa))
+
 ## [0.13.0](https://github.com/openfoodfacts/labelr/compare/v0.12.1...v0.13.0) (2026-02-13)
 
 
