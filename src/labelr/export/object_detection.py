@@ -32,6 +32,7 @@ def export_from_ls_to_hf_object_detection(
     merge_labels: bool = False,
     use_aws_cache: bool = True,
     revision: str = "main",
+    skip_labels: list[str] | None = None,
 ) -> None:
     """Export annotations from a Label Studio project to a Hugging Face
     dataset.
@@ -56,14 +57,18 @@ def export_from_ls_to_hf_object_detection(
         use_aws_cache (bool): Whether to use the AWS image cache when
             downloading images. Defaults to True.
         revision (str): The dataset revision to push to. Defaults to 'main'.
+        skip_labels (list[str] | None): List of label names to skip. If the
+            label of an annotation result is in this list, it will be skipped.
+            Defaults to None.
     """
     if merge_labels:
         label_names = ["object"]
 
     logger.info(
-        "Project ID: %d, label names: %s, repo_id: %s, revision: %s, view ID: %s",
+        "Project ID: %d, label names: %s, skip labels: %s, repo_id: %s, revision: %s, view ID: %s",
         project_id,
         label_names,
+        skip_labels,
         repo_id,
         revision,
         view_id,
@@ -90,6 +95,7 @@ def export_from_ls_to_hf_object_detection(
                     merge_labels=merge_labels,
                     use_aws_cache=use_aws_cache,
                     image_max_size=image_max_size,
+                    skip_labels=skip_labels,
                 )
                 if sample is not None:
                     # Save output as pickle
@@ -115,6 +121,7 @@ def export_from_ls_to_ultralytics_object_detection(
     use_aws_cache: bool = True,
     view_id: int | None = None,
     image_max_size: int | None = None,
+    skip_labels: list[str] | None = None,
 ):
     """Export annotations from a Label Studio project to the Ultralytics
     format.
@@ -139,10 +146,20 @@ def export_from_ls_to_ultralytics_object_detection(
             all tasks are exported. Defaults to None.
         image_max_size (int | None): Maximum size (in pixels) for the images.
             If None, no resizing is performed. Defaults to None.
+        skip_labels (list[str] | None): List of label names to skip. If the
+            label of an annotation result is in this list, it will be skipped.
+            Defaults to None.
     """
     if merge_labels:
         label_names = ["object"]
-    logger.info("Project ID: %d, label names: %s", project_id, label_names)
+
+    skip_labels = skip_labels or []
+    logger.info(
+        "Project ID: %d, label names: %s, skip labels: %s",
+        project_id,
+        label_names,
+        skip_labels,
+    )
 
     data_dir = output_dir / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -218,7 +235,20 @@ def export_from_ls_to_ultralytics_object_detection(
                     label_name = (
                         label_names[0] if merge_labels else value["rectanglelabels"][0]
                     )
-                    label_id = label_names.index(label_name)
+                    if label_name in skip_labels:
+                        continue
+                    label_id = (
+                        label_names.index(label_name)
+                        if label_name in label_names
+                        else -1
+                    )
+                    if label_id == -1:
+                        logger.warning(
+                            "Label name '%s' not found in label_names, skipping annotation result: '%s'",
+                            label_name,
+                            annotation_result,
+                        )
+                        continue
 
                     # Save the labels in the Ultralytics format:
                     # - one label per line
@@ -275,6 +305,7 @@ def export_from_hf_to_ultralytics_object_detection(
     use_aws_cache: bool = True,
     image_max_size: int | None = None,
     revision: str = "main",
+    skip_labels: list[str] | None = None,
 ):
     """Export annotations from a Hugging Face dataset project to the
     Ultralytics format.
@@ -297,12 +328,18 @@ def export_from_hf_to_ultralytics_object_detection(
         image_max_size (int | None): Maximum size (in pixels) for the images.
             If None, no resizing is performed. Defaults to None.
         revision (str): The dataset revision to load. Defaults to 'main'.
+        skip_labels (list[str] | None): List of label names to skip. If the
+            label of an annotation result is in this list, it will be skipped.
+            Defaults to None.
     """
-    logger.info("Repo ID: %s, revision: %s", repo_id, revision)
+    skip_labels = skip_labels or []
+    logger.info(
+        "Repo ID: %s, revision: %s, skip labels: %s", repo_id, revision, skip_labels
+    )
     ds = datasets.load_dataset(repo_id, revision=revision)
     data_dir = output_dir / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
-    category_id_to_name = {}
+    label_id_to_name = {}
 
     split_map = {
         "train": "train",
@@ -359,15 +396,15 @@ def export_from_hf_to_ultralytics_object_detection(
 
             objects = sample["objects"]
             bboxes = objects["bbox"]
-            category_ids = objects["category_id"]
-            category_names = objects["category_name"]
+            label_ids = objects["category_id"]
+            label_names = objects["category_name"]
 
             with (split_labels_dir / f"{image_id}.txt").open("w") as f:
-                for bbox, category_id, category_name in zip(
-                    bboxes, category_ids, category_names
-                ):
-                    if category_id not in category_id_to_name:
-                        category_id_to_name[category_id] = category_name
+                for bbox, label_id, label_name in zip(bboxes, label_ids, label_names):
+                    if label_id not in label_id_to_name:
+                        label_id_to_name[label_id] = label_name
+                    if label_name in skip_labels:
+                        continue
                     y_min, x_min, y_max, x_max = bbox
                     y_min = min(max(y_min, 0.0), 1.0)
                     x_min = min(max(x_min, 0.0), 1.0)
@@ -378,23 +415,21 @@ def export_from_hf_to_ultralytics_object_detection(
                     # Save the labels in the Ultralytics format:
                     # - one label per line
                     # - each line is a list of 5 elements:
-                    #   - category_id
+                    #   - label_id
                     #   - x_center
                     #   - y_center
                     #   - width
                     #   - height
                     x_center = x_min + width / 2
                     y_center = y_min + height / 2
-                    f.write(f"{category_id} {x_center} {y_center} {width} {height}\n")
+                    f.write(f"{label_id} {x_center} {y_center} {width} {height}\n")
 
-    category_names = [
-        x[1] for x in sorted(category_id_to_name.items(), key=lambda x: x[0])
-    ]
+    label_names = [x[1] for x in sorted(label_id_to_name.items(), key=lambda x: x[0])]
     with (output_dir / "data.yaml").open("w") as f:
         f.write("path: data\n")
         f.write("train: images/train\n")
         f.write("val: images/val\n")
         f.write("test:\n")
         f.write("names:\n")
-        for i, category_name in enumerate(category_names):
-            f.write(f"  {i}: {category_name}\n")
+        for i, label_name in enumerate(label_names):
+            f.write(f"  {i}: {label_name}\n")

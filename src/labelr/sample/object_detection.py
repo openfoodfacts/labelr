@@ -4,7 +4,6 @@ import string
 import typing
 
 import datasets
-import PIL
 from openfoodfacts import Flavor
 from openfoodfacts.barcode import normalize_barcode
 from openfoodfacts.images import download_image, generate_image_url
@@ -154,6 +153,7 @@ def format_object_detection_sample_to_hf(
     merge_labels: bool = False,
     use_aws_cache: bool = False,
     image_max_size: int | None = None,
+    skip_labels: list[str] | None = None,
 ) -> dict | None:
     """Format a Label Studio object detection sample to Hugging Face format.
 
@@ -166,6 +166,9 @@ def format_object_detection_sample_to_hf(
         use_aws_cache: Whether to use AWS cache when downloading images.
         image_max_size: Maximum size (in pixels) for the images.
             If None, no resizing is performed. Defaults to None.
+        skip_labels (list[str] | None): List of label names to skip. If the
+            label of an annotation result is in this list, it will be skipped.
+            Defaults to None.
 
     Returns:
         The formatted sample, or None in the following cases:
@@ -180,6 +183,7 @@ def format_object_detection_sample_to_hf(
         logger.info("No annotation found, skipping")
         return None
 
+    skip_labels = skip_labels or []
     annotation = annotations[0]
     bboxes = []
     bbox_label_ids = []
@@ -200,8 +204,18 @@ def format_object_detection_sample_to_hf(
         bboxes.append([y_min, x_min, y_max, x_max])
 
         label_name = label_names[0] if merge_labels else value["rectanglelabels"][0]
+        if label_name in skip_labels:
+            continue
+        label_id = label_names.index(label_name) if label_name in label_names else -1
+        if label_id == -1:
+            logger.warning(
+                "Label name '%s' not found in label_names, skipping annotation result: '%s'",
+                label_name,
+                annotation_result,
+            )
+            continue
         bbox_label_names.append(label_name)
-        bbox_label_ids.append(label_names.index(label_name))
+        bbox_label_ids.append(label_id)
 
     image_url = task_data["image_url"]
     image = download_image(image_url, error_raise=False, use_cache=use_aws_cache)

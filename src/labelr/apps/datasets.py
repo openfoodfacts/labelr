@@ -118,23 +118,31 @@ def convert_object_detection_dataset(
 
 @app.command()
 def export(
-    from_: Annotated[ExportSource, typer.Option("--from", help="Input source to use")],
-    to: Annotated[ExportDestination, typer.Option(help="Where to export the data")],
+    from_: Annotated[ExportSource, typer.Option("--from", help="Input source to use.")],
+    to: Annotated[ExportDestination, typer.Option(help="Where to export the data.")],
     api_key: Annotated[
         str | None, typer.Option(help=typer_description.LABEL_STUDIO_API_KEY)
     ] = config.label_studio_api_key,
     task_type: Annotated[
-        TaskType, typer.Option(help="Type of task to export")
+        TaskType, typer.Option(help="Type of task to export.")
     ] = TaskType.object_detection,
     repo_id: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
-            help="Hugging Face Datasets repository ID to convert (only if --from or --to is `hf`)"
+            help="Hugging Face Datasets repository ID to convert (only if --from or --to is `hf`)."
         ),
     ] = None,
     label_names: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(help="Label names to use, as a comma-separated list"),
+    ] = None,
+    skip_labels: Annotated[
+        str | None,
+        typer.Option(
+            help="Label names to skip  as a comma-separated list. If the label of an "
+            "annotation result is in this list, it will be skipped. Only used if the "
+            "source is Label Studio and the task type is object detection."
+        ),
     ] = None,
     project_id: Annotated[
         int | None, typer.Option(help=typer_description.LABEL_STUDIO_PROJECT_ID)
@@ -150,14 +158,14 @@ def export(
         str, typer.Option(help=typer_description.LABEL_STUDIO_URL)
     ] = config.label_studio_url,
     output_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             help="Path to the output directory. Only used if the destintation (`to`) is `ultralytics`",
             file_okay=False,
         ),
     ] = None,
     dataset_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(help="Path to the dataset directory, only for Ultralytics source"),
     ] = None,
     download_images: Annotated[
@@ -264,6 +272,11 @@ def export(
         label_names = typing.cast(str, label_names)
         label_names_list = label_names.split(",")
 
+    skip_labels_list = []
+    if skip_labels is not None:
+        skip_labels = typing.cast(str, skip_labels)
+        skip_labels_list = skip_labels.split(",")
+
     if from_ == ExportSource.ls:
         if project_id is None:
             raise typer.BadParameter("Project ID is required for LS export")
@@ -292,6 +305,7 @@ def export(
                 revision=revision,
                 view_id=view_id,
                 image_max_size=image_max_size,
+                skip_labels=skip_labels_list,
             )
         elif to == ExportDestination.ultralytics:
             export_from_ls_to_ultralytics_object_detection(
@@ -305,6 +319,7 @@ def export(
                 use_aws_cache=use_aws_cache,
                 view_id=view_id,
                 image_max_size=image_max_size,
+                skip_labels=skip_labels_list,
             )
 
     elif from_ == ExportSource.hf:
@@ -321,6 +336,7 @@ def export(
                 use_aws_cache=use_aws_cache,
                 revision=revision,
                 image_max_size=image_max_size,
+                skip_labels=skip_labels_list,
             )
         else:
             raise typer.BadParameter("Unsupported export format")
