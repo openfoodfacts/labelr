@@ -231,7 +231,9 @@ def format_object_detection_sample_to_hf(
     # Indeed, Hugging Face stores images without applying EXIF rotation, and
     # EXIF data is not preserved in the dataset.
     ImageOps.exif_transpose(image, in_place=True)
-
+    if image.mode != "RGB":
+        # Convert image to RGB if needed
+        image = image.convert("RGB")
     # Resize image if larger than max size
     if image_max_size is not None and (
         image.width > image_max_size or image.height > image_max_size

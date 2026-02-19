@@ -385,6 +385,9 @@ def export_from_hf_to_ultralytics_object_detection(
             # If the image source is Hugging Face, EXIF data is not preserved,
             # so this step is only useful when downloading images.
             ImageOps.exif_transpose(image, in_place=True)
+            if image.mode != "RGB":
+                # Convert image to RGB if needed
+                image = image.convert("RGB")
             # Resize image if larger than max size
             if image_max_size is not None and (
                 image.width > image_max_size or image.height > image_max_size
