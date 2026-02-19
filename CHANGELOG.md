@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.14.0](https://github.com/openfoodfacts/labelr/compare/v0.13.1...v0.14.0) (2026-02-19)
+
+
+### Features
+
+* **datasets:** allow to specify labels to exclude during export ([849bec1](https://github.com/openfoodfacts/labelr/commit/849bec1af0835d1067d55fd1b0b32a323ebf2ee1))
+
+
+### Bug Fixes
+
+* convert images to RGB before export ([bfd7d0c](https://github.com/openfoodfacts/labelr/commit/bfd7d0cf243e37dd4cf64669880ec2907fff13b3))
+
 ## [0.13.1](https://github.com/openfoodfacts/labelr/compare/v0.13.0...v0.13.1) (2026-02-19)
 
 
