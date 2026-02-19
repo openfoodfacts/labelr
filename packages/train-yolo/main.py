@@ -340,7 +340,7 @@ def main(
         # The actual batch size is stored in model.trainer.args.batch
         batch = model.trainer.args.batch
 
-    # Export the trained model to ONNX and TensorRT format
+    # Export the trained model to ONNX format
     model.export(
         format="onnx",
         # Include NMS in the exported model
