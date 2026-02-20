@@ -304,13 +304,13 @@ def delete(
 
     for task in tqdm.tqdm(ls.tasks.list(project=project_id, query=query), desc="tasks"):
         for prediction in task.predictions:
-            if prediction["model_version"] != model_version:
+            if prediction.model_version != model_version:
                 continue
             if dry_run:
-                logger.info("Dry run: prediction %s would be deleted", prediction["id"])
+                logger.info("Dry run: prediction %s would be deleted", prediction.id)
             else:
-                ls.predictions.delete(prediction["id"])
-                logger.info("Prediction deleted: %s", prediction["id"])
+                ls.predictions.delete(prediction.id)
+                logger.info("Prediction deleted: %s", prediction.id)
 
 
 @app.command()
@@ -363,9 +363,9 @@ def show_uncertain(
             ls.tasks.list(project=project_id, fields="all"), desc="tasks"
         ):
             for prediction in task.predictions:
-                if prediction["model_version"] != model_version:
+                if prediction.model_version != model_version:
                     continue
-                elif (min_score := (prediction["score"] or 0.0)) <= threshold:
+                elif (min_score := (prediction.score or 0.0)) <= threshold:
                     logger.info("Task ID: %s, score: %s", task.id, min_score)
                     line = f"{task.id},{min_score}\n" if add_score else f"{task.id}\n"
                     f.write(line)
