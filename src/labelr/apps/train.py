@@ -32,6 +32,11 @@ AVAILABLE_OBJECT_DETECTION_MODELS = [
     "yolo12m.pt",
     "yolo12l.pt",
     "yolo12x.pt",
+    "yolo26n.pt",
+    "yolo26s.pt",
+    "yolo26m.pt",
+    "yolo26l.pt",
+    "yolo26x.pt",
 ]
 
 
@@ -63,6 +68,14 @@ def train_object_detection(
         help="The YOLO model variant to use for training. "
         "This should be a valid Ultralytics model name.",
     ),
+    memory_mib: int = typer.Option(
+        16000,
+        help="Memory for the container, in MiB.",
+    ),
+    shared_memory_mib: int = typer.Option(
+        4096,
+        help="Shared memory size for the container, in MiB.",
+    ),
 ):
     """Train an object detection model."""
 
@@ -76,6 +89,17 @@ def train_object_detection(
     if add_date_to_run_name:
         run_name = f"{run_name}-{datestamp}"
 
+    typer.echo(
+        f"Launching following training job:\nrun name: {run_name}\n"
+        f"model: {model_name}\n"
+        f"epochs: {epochs}\n"
+        f"max image size: {imgsz}\n"
+        f"batch size: {batch}\n"
+        f"HF dataset repo ID: {hf_repo_id}\n"
+        f"HF trained model repo ID: {hf_trained_model_repo_id}\n"
+        f"memory: {memory_mib} MiB\n"
+        f"shared memory: {shared_memory_mib} MiB\n"
+    )
     env_variables = {
         "HF_REPO_ID": hf_repo_id,
         "HF_TRAINED_MODEL_REPO_ID": hf_trained_model_repo_id,
@@ -99,6 +123,8 @@ def train_object_detection(
         job_name=job_name,
         container_image_uri="europe-west9-docker.pkg.dev/robotoff/gcf-artifacts/train-yolo",
         env_variables=env_variables,
+        memory_mib=memory_mib,
+        shared_memory_mib=shared_memory_mib,
     )
     typer.echo("Job launched")
     typer.echo(job)
@@ -117,7 +143,8 @@ def launch_job(
     env_variables: dict[str, str] | None = None,
     entrypoint: str | None = None,
     cpu_milli: int = 4000,  # in milli-CPU units (4000 = 4 CPUs). This means the task requires 4 whole CPUs.
-    memory_mib: int = 16000,  # Make sure to have enough memory for the 2GB of shared memory set below.
+    memory_mib: int = 16000,  # Make sure to have enough memory for the shared memory set below.
+    shared_memory_mib: int = 4096,  # Shared memory size for the container, in MiB. This is important for PyTorch.
     boot_disk_mib: int = 100000,
     max_retry_count: int = 1,
     max_run_duration: str = "86400s",  # 24 hours
@@ -152,7 +179,7 @@ def launch_job(
     runnable.container.image_uri = container_image_uri
     runnable.container.entrypoint = entrypoint  # type: ignore
     # By default, /dev/shm is 64MB which is not enough for Pytorch
-    runnable.container.options = "--shm-size=2048m"
+    runnable.container.options = f"--shm-size={shared_memory_mib}m"
     runnable.container.commands = commands
 
     # Jobs can be divided into tasks. In this case, we have only one task.
