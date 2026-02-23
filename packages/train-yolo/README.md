@@ -54,12 +54,7 @@ WANDB_PROJECT=nutrition-table-detection -e WANDB_NAME=yolov8 -e HF_REPO_ID=openf
 
 We use Google Cloud Batch for training: a docker container is launched on a VM with GPU to perform the training. Before being able to launch a training job, you need to publish a docker image containing the training code and its dependencies. This should be done only when there are changes to the training code or its dependencies.
 
-To publish a new docker image for this package, run the following commands from the root of the package:
-
-```bash
-docker build . -t europe-west9-docker.pkg.dev/robotoff/gcf-artifacts/train-yolo:latest
-docker push europe-west9-docker.pkg.dev/robotoff/gcf-artifacts/train-yolo:latest
-```
+To publish a new docker image for this package, just run a `make build` then `make push`.
 
 ## Testing locally
 
