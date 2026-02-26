@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.14.1](https://github.com/openfoodfacts/labelr/compare/v0.14.0...v0.14.1) (2026-02-23)
+
+
+### Bug Fixes
+
+* **label-studio:** update commands after label-studio-sdk update ([52e2c6d](https://github.com/openfoodfacts/labelr/commit/52e2c6d72dccbe82982efd3f2b973888a64f6227))
+* **train-yolo:** add a Makefile ([6758dc8](https://github.com/openfoodfacts/labelr/commit/6758dc805eed598d931c42c3446d5268f79deb23))
+* **train:** improve train command ([c9e58d7](https://github.com/openfoodfacts/labelr/commit/c9e58d7ab6a933a61d638a0f5633271f1acf9f57))
+
+
+### Technical
+
+* **deps:** upgrade ultralytics to 8.4.14 ([9b59ce9](https://github.com/openfoodfacts/labelr/commit/9b59ce96c3d9bf9fef5fe1b3c01ffc4abd4bff85))
+* refresh uv.lock ([212fb2b](https://github.com/openfoodfacts/labelr/commit/212fb2b20a9387b33f8f3a2289f90611c65abba6))
+* **train-yolo:** update README.md ([bd4822c](https://github.com/openfoodfacts/labelr/commit/bd4822ca023602084138c1149f46af3ea8666e09))
+* **yolo-train:** update labelr dep ([b831600](https://github.com/openfoodfacts/labelr/commit/b831600d6c1997a54a48ec84be52f32bb37cec98))
+
 ## [0.14.0](https://github.com/openfoodfacts/labelr/compare/v0.13.1...v0.14.0) (2026-02-19)
 
 
