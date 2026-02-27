@@ -1,5 +1,6 @@
 import datetime
 import functools
+import json
 import os
 import pickle
 import tempfile
@@ -10,7 +11,6 @@ import datasets
 import torch
 import tqdm
 import typer
-import ultralytics
 import wandb
 from datasets import Dataset
 from huggingface_hub import HfApi, ModelCard, ModelCardData
@@ -112,6 +112,8 @@ def create_model_card(
     license: str = "agpl-3.0",
     wandb_run_url: str | None = None,
 ) -> ModelCard:
+    import ultralytics
+
     card_data = ModelCardData(
         license=license,
         library_name="ultralytics",
@@ -138,7 +140,7 @@ def create_model_card(
 
 
 def create_predict_dataset(
-    model: ultralytics.YOLO,
+    model: "ultralytics.YOLO",
     ds: Dataset,
     output_path: Path,
     imgsz: int,
@@ -216,6 +218,30 @@ def create_predict_dataset(
         typer.echo(f"Saved Hugging Face dataset as Parquet file to: {output_path}")
 
 
+def generate_ultralytics_settings(root_dir: Path) -> dict:
+    return {
+        "settings_version": "0.0.6",
+        "datasets_dir": f"{root_dir}/datasets",
+        "weights_dir": f"{root_dir}/weights",
+        "runs_dir": f"{root_dir}/runs",
+        "uuid": "08c1ccdf367db40afac4e8d21426192fc60fab1eb920743fcb7daaf744cf1752",
+        "sync": True,
+        "api_key": "",
+        "openai_api_key": "",
+        "clearml": False,
+        "comet": False,
+        "dvc": False,
+        "hub": False,
+        "mlflow": False,
+        "neptune": False,
+        "raytune": False,
+        "tensorboard": False,
+        "wandb": True,
+        "vscode_msg": False,
+        "openvino_msg": False,
+    }
+
+
 WANDB_RUN_URL = None
 
 
@@ -280,6 +306,10 @@ def main(
     skip_dataset_download: Annotated[
         bool, typer.Option(help="Skip dataset download step, only for debugging")
     ] = False,
+    root_dir: Annotated[
+        Path | None,
+        typer.Option(help="Root directory for the project", envvar="ROOT_DIR"),
+    ] = None,
 ):
     if not os.getenv("HF_TOKEN"):
         raise ValueError(
@@ -299,11 +329,21 @@ def main(
         wandb.login(key=wandb_api_key)
 
     hf_api = HfApi()
-    # This is the same as the dataset directory set in the Ultralytics
-    # settings (see `Ultralytics/settings.json`)
-    root_dir = Path(__file__).parent.absolute()
+    if root_dir is None:
+        root_dir = Path(os.getcwd())
+
+    ultralytics_settings = generate_ultralytics_settings(root_dir)
+    settings_dir = root_dir / "Ultralytics"
+    settings_dir.mkdir(exist_ok=True)
+    (settings_dir / "settings.json").write_text(
+        json.dumps(ultralytics_settings, indent=2)
+    )
+    # Setting the YOLO_CONFIG_DIR environment variable to the directory containing
+    # the settings.json file, so that the ultralytics library can find it
+    os.environ["YOLO_CONFIG_DIR"] = str(root_dir)
+
     dataset_dir = root_dir / "datasets"
-    run_dir = (Path(__file__).parent / project / run_name).absolute()
+    run_dir = (root_dir / "runs" / "detect" / project / run_name).absolute()
 
     hf_repo_id, revision = parse_hf_repo_id(hf_repo_id)
 
@@ -317,6 +357,8 @@ def main(
             download_images=False,
             error_raise=True,
         )
+
+    import ultralytics
 
     model = ultralytics.YOLO(model_name, task="detect")
     model.add_callback("on_train_start", register_wanb_run_url)

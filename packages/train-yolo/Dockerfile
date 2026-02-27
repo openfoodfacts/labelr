@@ -42,7 +42,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # Set the environment path for the virtual environment
 ENV PATH="/app/.venv/bin:$PATH" \
-    YOLO_CONFIG_DIR="/app"
+    YOLO_CONFIG_DIR="/app" \
+    ROOT_DIR="/app"
 
 ENTRYPOINT []
 
