@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.15.0](https://github.com/openfoodfacts/labelr/compare/v0.14.1...v0.15.0) (2026-03-02)
+
+
+### Features
+
+* add new labelr ls object-detection subcommand ([d7a06b6](https://github.com/openfoodfacts/labelr/commit/d7a06b60539e69d1f382f1493f38c47054967449))
+* allow to specify tags in create-dataset-file command ([e09be1b](https://github.com/openfoodfacts/labelr/commit/e09be1bc00956772ecb3398cbeb0f937d9e5180e))
+
+
+### Bug Fixes
+
+* **train-yolo:** allow to train models without Docker ([4ebb176](https://github.com/openfoodfacts/labelr/commit/4ebb17699e60d8ce5cc7386c280a84d27bee4975))
+
 ## [0.14.1](https://github.com/openfoodfacts/labelr/compare/v0.14.0...v0.14.1) (2026-02-23)
 
 
