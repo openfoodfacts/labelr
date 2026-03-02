@@ -252,33 +252,35 @@ def create_dataset_file(
             extra_meta: JSONType = {}
             if jsonl_mode:
                 item = orjson.loads(line)
-                url = item.pop("image_url")
+                image_url = item.pop("image_url")
                 image_id = item.pop("image_id", None)
+                tags = item.pop("tags", [])
                 extra_meta |= item
             else:
-                url = line.strip()
+                image_url = line.strip()
                 image_id = None
-                if not url:
+                tags = []
+                if not image_url:
                     continue
 
             if not image_id:
-                image_id = Path(urlparse(url).path).stem
+                image_id = Path(urlparse(image_url).path).stem
 
-            if ".openfoodfacts.org" in url:
-                barcode = extract_barcode_from_url(url)
-                extra_meta["barcode"] = barcode
-                off_image_id = Path(extract_source_from_url(url)).stem
-                extra_meta["off_image_id"] = off_image_id
-                image_id = f"{barcode}_{off_image_id}"
-
-            image = typing.cast(Image.Image, get_image_from_url(url, error_raise=False))
+            image = typing.cast(
+                Image.Image, get_image_from_url(image_url, error_raise=False)
+            )
 
             if image is None:
-                logger.warning("Failed to load image: %s", url)
+                logger.warning("Failed to load image: %s", image_url)
                 continue
 
             label_studio_sample = format_object_detection_sample_to_ls(
-                image_id, url, image.width, image.height, extra_meta
+                image_id=image_id,
+                image_url=image_url,
+                width=image.width,
+                height=image.height,
+                extra_meta=extra_meta,
+                tags=tags,
             )
             f.write(json.dumps(label_studio_sample) + "\n")
 

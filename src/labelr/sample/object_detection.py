@@ -121,6 +121,7 @@ def format_object_detection_sample_to_ls(
     width: int,
     height: int,
     extra_meta: dict | None = None,
+    tags: list[str] | None = None,
 ) -> dict:
     """Format an object detection sample in Label Studio format.
 
@@ -130,6 +131,7 @@ def format_object_detection_sample_to_ls(
         width: The width of the image.
         height: The height of the image.
         extra_meta: Extra metadata to include in the sample.
+        tags: List of tags to include in the sample.
     """
     extra_meta = extra_meta or {}
     return {
@@ -142,6 +144,7 @@ def format_object_detection_sample_to_ls(
                 "height": height,
                 **extra_meta,
             },
+            "tags": tags or [],
         },
     }
 
