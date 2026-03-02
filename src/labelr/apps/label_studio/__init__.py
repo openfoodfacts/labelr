@@ -10,12 +10,18 @@ from ...config import config, check_required_field
 from .common import check_label_studio_api_key
 from .prediction import app as prediction_app
 from .tag import app as tag_app
+from .object_detection import app as object_detection_app
 
 app = typer.Typer(no_args_is_help=True)
 app.add_typer(
     prediction_app, name="prediction", help="Manage predictions on Label Studio."
 )
 app.add_typer(tag_app, name="tag", help="Manage tags on tasks.")
+app.add_typer(
+    object_detection_app,
+    name="object-detection",
+    help="object detection-related commands.",
+)
 
 logger = get_logger(__name__)
 
@@ -231,7 +237,6 @@ def create_dataset_file(
 
     from PIL import Image
     import tqdm
-    from openfoodfacts.images import extract_barcode_from_url, extract_source_from_url
     from openfoodfacts.utils import get_image_from_url
     from openfoodfacts.types import JSONType
     import orjson
