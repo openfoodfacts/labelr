@@ -11,6 +11,7 @@ from .common import check_label_studio_api_key
 from .prediction import app as prediction_app
 from .tag import app as tag_app
 from .object_detection import app as object_detection_app
+from .image_classification import app as image_classification_app
 
 app = typer.Typer(no_args_is_help=True)
 app.add_typer(
@@ -21,6 +22,11 @@ app.add_typer(
     object_detection_app,
     name="object-detection",
     help="object detection-related commands.",
+)
+app.add_typer(
+    image_classification_app,
+    name="image-classification",
+    help="image classification-related commands.",
 )
 
 logger = get_logger(__name__)
