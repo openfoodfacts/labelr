@@ -231,6 +231,9 @@ def create_dataset_file(
     - `image_id` (str, optional): the ID of the image, used as value for the
         `image_id` in Label Studio. If not provided, we use the stemmed name of the
         file in the URL as `image_id`.
+    - `tags` (list of str, optional): list of tags to add to the sample in Label
+      Studio. These tags can be used to filter the samples in Label Studio and to
+      create views based on them.
 
     Other fields in the JSON will be added to the `meta` field of each task.
 
