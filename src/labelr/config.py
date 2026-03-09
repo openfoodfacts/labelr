@@ -21,7 +21,7 @@ def check_required_field(name: str, value: Any):
 
 
 # validate_assignment allows to validate the model everytime it is updated
-class LabelrConfig(BaseModel, validate_assignment=True):
+class LabelrConfig(BaseModel, validate_assignment=True, extra="forbid"):
     label_studio_url: str = Field(
         default="http://127.0.0.1:8080",
         description="URL of the Label Studio instance to use. Defaults to http://127.0.0.1:8080.",
