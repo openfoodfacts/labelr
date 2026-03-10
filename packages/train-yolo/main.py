@@ -121,7 +121,7 @@ def main(
     if wandb_api_key:
         wandb.login(key=wandb_api_key)
 
-    run_dir = (root_dir / "runs" / "detect" / project / run_name).absolute()
+    run_dir = (root_dir / "runs" / task / project / run_name).absolute()
 
     hf_repo_id, revision = parse_hf_repo_id(hf_repo_id)
 
