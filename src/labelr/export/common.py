@@ -19,8 +19,6 @@ def export_from_ultralytics_to_hf(
     repo_id: str,
     label_names: list[str],
     merge_labels: bool = False,
-    is_openfoodfacts_dataset: bool = False,
-    openfoodfacts_flavor: Flavor = Flavor.off,
 ) -> None:
     from labelr.export.classification import (
         export_from_ultralytics_to_hf_classification,
@@ -37,6 +35,4 @@ def export_from_ultralytics_to_hf(
             repo_id=repo_id,
             label_names=label_names,
             merge_labels=merge_labels,
-            is_openfoodfacts_dataset=is_openfoodfacts_dataset,
-            openfoodfacts_flavor=openfoodfacts_flavor,
         )

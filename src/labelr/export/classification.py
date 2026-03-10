@@ -5,12 +5,14 @@ import tempfile
 from pathlib import Path
 
 import datasets
-from openfoodfacts.images import generate_image_url
-from openfoodfacts.types import Flavor
+from label_studio_sdk import LabelStudio
 from PIL import Image, ImageOps
+import orjson
+import tqdm
 
 from labelr.export.common import _pickle_sample_generator
-from labelr.sample.classification import HF_DS_CLASSIFICATION_FEATURES
+from labelr.sample.classification import get_hf_image_classification_features
+from labelr.sample.classification import format_image_classification_sample_to_hf
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +22,6 @@ def export_from_ultralytics_to_hf_classification(
     repo_id: str,
     label_names: list[str],
     merge_labels: bool = False,
-    is_openfoodfacts_dataset: bool = False,
-    openfoodfacts_flavor: Flavor = Flavor.off,
 ) -> None:
     """Export an Ultralytics classification dataset to a Hugging Face dataset.
 
@@ -34,15 +34,10 @@ def export_from_ultralytics_to_hf_classification(
         label_names (list[str]): List of label names.
         merge_labels (bool): Whether to merge all labels into a single label
             named 'object'.
-        is_openfoodfacts_dataset (bool): Whether the dataset is from
-            Open Food Facts. If True, the `off_image_id` and `image_url` will
-            be generated automatically. `off_image_id` is extracted from the
-            image filename.
-        openfoodfacts_flavor (Flavor): Flavor of Open Food Facts dataset. This
-            is ignored if `is_openfoodfacts_dataset` is False.
     """
     logger.info("Repo ID: %s, dataset_dir: %s", repo_id, dataset_dir)
 
+    ds_features = get_hf_image_classification_features()
     if not any((dataset_dir / split).is_dir() for split in ["train", "val", "test"]):
         raise ValueError(
             f"Dataset directory {dataset_dir} does not contain 'train', 'val' or 'test' subdirectories"
@@ -70,19 +65,7 @@ def export_from_ultralytics_to_hf_classification(
                 label_id = label_names.index(label_name)
 
                 for image_path in label_dir.glob("*"):
-                    if is_openfoodfacts_dataset:
-                        image_stem_parts = image_path.stem.split("_")
-                        barcode = image_stem_parts[0]
-                        off_image_id = image_stem_parts[1]
-                        image_id = f"{barcode}_{off_image_id}"
-                        image_url = generate_image_url(
-                            barcode, off_image_id, flavor=openfoodfacts_flavor
-                        )
-                    else:
-                        image_id = image_path.stem
-                        barcode = ""
-                        off_image_id = ""
-                        image_url = ""
+                    image_id = image_path.stem
                     image = Image.open(image_path)
                     image.load()
 
@@ -96,11 +79,7 @@ def export_from_ultralytics_to_hf_classification(
                         "image": image,
                         "width": image.width,
                         "height": image.height,
-                        "meta": {
-                            "barcode": barcode,
-                            "off_image_id": off_image_id,
-                            "image_url": image_url,
-                        },
+                        "meta": {},
                         "category_id": label_id,
                         "category_name": label_name,
                     }
@@ -109,6 +88,121 @@ def export_from_ultralytics_to_hf_classification(
 
             hf_ds = datasets.Dataset.from_generator(
                 functools.partial(_pickle_sample_generator, tmp_dir),
-                features=HF_DS_CLASSIFICATION_FEATURES,
+                features=ds_features,
+            )
+            hf_ds.push_to_hub(repo_id, split=split)
+
+
+def export_from_ls_to_hf_classification(
+    ls: LabelStudio,
+    repo_id: str,
+    label_names: list[str],
+    project_id: int,
+    image_max_size: int | None = None,
+    view_id: int | None = None,
+    merge_labels: bool = False,
+    revision: str | None = None,
+    skip_labels: list[str] | None = None,
+    meta_schema_path: Path | None = None,
+) -> None:
+    """Export annotations of an image classification project from a Label
+    Studio project to a Hugging Face dataset.
+
+    The Label Studio project should be an image classification project.
+
+    Args:
+        ls (LabelStudio): Label Studio instance.
+        repo_id (str): Hugging Face repository ID to push the dataset to.
+        label_names (list[str]): List of label names.
+        project_id (int): Label Studio project ID to export.
+        image_max_size (int | None): If provided, the images will be resized to
+            have a maximum size of `image_max_size` while keeping the aspect ratio.
+        view_id (int | None): If provided, only the annotations from the given
+            view will be exported.
+        merge_labels (bool): Whether to merge all labels into a single label
+            named 'object'.
+        revision (str | None): If provided, the dataset will be exported from
+            the given revision of the Label Studio project.
+        skip_labels (list[str] | None): If provided, the labels in this list
+            will be skipped during the export.
+        meta_schema_path (Path | None): If provided, the metadata of the samples will
+        be formatted according to the given meta schema file. The meta schema file
+        should be a JSON file that defines the structure of the metadata.
+    """
+    if merge_labels:
+        label_names = ["object"]
+
+    logger.info(
+        "Project ID: %d, label names: %s, skip labels: %s, "
+        "repo_id: %s, revision: %s, view ID: %s, "
+        "image_max_size: %s",
+        project_id,
+        label_names,
+        skip_labels,
+        repo_id,
+        revision,
+        view_id,
+        image_max_size,
+    )
+
+    meta_schema = None
+    if meta_schema_path:
+        with open(meta_schema_path, "rb") as f:
+            meta_schema = orjson.loads(f.read())
+
+    ds_features = get_hf_image_classification_features(meta_schema=meta_schema)
+    # Save output as pickle
+    for split in ["train", "val", "test"]:
+        logger.info("Processing split: %s", split)
+        has_samples = False
+
+        query = {
+            "conjunction": "and",
+            "items": [
+                {
+                    "filter": "filter:tasks:data.split",
+                    "operator": "equal",
+                    "value": split,
+                    "type": "Unknown",
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmp_dir_str:
+            tmp_dir = Path(tmp_dir_str)
+            logger.info("Saving samples to temporary directory: %s", tmp_dir)
+            for i, task in tqdm.tqdm(
+                enumerate(
+                    ls.tasks.list(
+                        project=project_id, fields="all", view=view_id, query=query
+                    )
+                ),
+                desc="tasks",
+            ):
+                if task.data["split"] != split:
+                    continue
+                sample = format_image_classification_sample_to_hf(
+                    task_id=task.id,
+                    task_data=task.data,
+                    annotations=task.annotations,
+                    label_names=label_names,
+                    merge_labels=merge_labels,
+                    image_max_size=image_max_size,
+                    skip_labels=skip_labels,
+                    meta_schema=meta_schema,
+                )
+                if sample is None:
+                    continue
+
+                has_samples = True
+                with open(tmp_dir / f"{split}_{i:05}.pkl", "wb") as f:
+                    pickle.dump(sample, f)
+
+            if not has_samples:
+                logger.info("No samples for split: %s", split)
+                continue
+
+            hf_ds = datasets.Dataset.from_generator(
+                functools.partial(_pickle_sample_generator, tmp_dir),
+                features=ds_features,
             )
             hf_ds.push_to_hub(repo_id, split=split)

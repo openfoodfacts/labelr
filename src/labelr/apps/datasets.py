@@ -6,7 +6,7 @@ import random
 import shutil
 import typing
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 from openfoodfacts import Flavor
@@ -186,15 +186,6 @@ def export(
             "Hugging Face Datasets."
         ),
     ] = False,
-    openfoodfacts_flavor: Annotated[
-        Flavor,
-        typer.Option(
-            help="Flavor of the Open Food Facts dataset to use for image URLs, only "
-            "for Ultralytics source if is_openfoodfacts_dataset is True. This is used to "
-            "generate the correct image URLs each image name. This option is ignored if "
-            "is_openfoodfacts_dataset is False."
-        ),
-    ] = Flavor.off,
     train_ratio: Annotated[
         float,
         typer.Option(
@@ -235,11 +226,18 @@ def export(
             "Only used when importing from or exporting to Hugging Face Datasets."
         ),
     ] = "main",
+    meta_schema_path: Annotated[
+        Path | None,
+        typer.Option(
+            help="Path to the meta schema file, only for Hugging Face Datasets export."
+        ),
+    ] = None,
 ):
     """Export Label Studio annotation, either to Hugging Face Datasets or
     local files (ultralytics format)."""
     from label_studio_sdk.client import LabelStudio
 
+    from labelr.export.classification import export_from_ls_to_hf_classification
     from labelr.export.object_detection import (
         export_from_hf_to_ultralytics_object_detection,
     )
@@ -287,26 +285,42 @@ def export(
         raise typer.BadParameter("Output directory is required for Ultralytics export")
 
     if from_ == ExportSource.ls:
-        if task_type != TaskType.object_detection:
-            raise typer.BadParameter(
-                "Only object detection task is currently supported with LS source"
-            )
         ls = LabelStudio(base_url=label_studio_url, api_key=api_key)
         if to == ExportDestination.hf:
             repo_id = typing.cast(str, repo_id)
-            export_from_ls_to_hf_object_detection(
-                ls,
-                repo_id=repo_id,
-                label_names=typing.cast(list[str], label_names_list),
-                project_id=typing.cast(int, project_id),
-                is_openfoodfacts_dataset=is_openfoodfacts_dataset,
-                merge_labels=merge_labels,
-                use_aws_cache=use_aws_cache,
-                revision=revision,
-                view_id=view_id,
-                image_max_size=image_max_size,
-                skip_labels=skip_labels_list,
-            )
+            project_id = typing.cast(int, project_id)
+            label_names_list = typing.cast(list[str], label_names_list)
+
+            if task_type == TaskType.object_detection:
+                export_from_ls_to_hf_object_detection(
+                    ls,
+                    repo_id=repo_id,
+                    label_names=label_names_list,
+                    project_id=project_id,
+                    is_openfoodfacts_dataset=is_openfoodfacts_dataset,
+                    merge_labels=merge_labels,
+                    use_aws_cache=use_aws_cache,
+                    revision=revision,
+                    view_id=view_id,
+                    image_max_size=image_max_size,
+                    skip_labels=skip_labels_list,
+                )
+            elif task_type == TaskType.classification:
+                export_from_ls_to_hf_classification(
+                    ls,
+                    repo_id=repo_id,
+                    label_names=label_names_list,
+                    project_id=project_id,
+                    image_max_size=image_max_size,
+                    view_id=view_id,
+                    merge_labels=merge_labels,
+                    revision=revision,
+                    skip_labels=skip_labels_list,
+                    meta_schema_path=meta_schema_path,
+                )
+            else:
+                raise typer.BadParameter("Unsupported task type")
+
         elif to == ExportDestination.ultralytics:
             export_from_ls_to_ultralytics_object_detection(
                 ls,
@@ -352,8 +366,6 @@ def export(
                 repo_id=typing.cast(str, repo_id),
                 merge_labels=merge_labels,
                 label_names=typing.cast(list[str], label_names_list),
-                is_openfoodfacts_dataset=is_openfoodfacts_dataset,
-                openfoodfacts_flavor=openfoodfacts_flavor,
             )
 
 
