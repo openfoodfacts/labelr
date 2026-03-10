@@ -1,3 +1,5 @@
+from typing import Literal
+
 import torch
 import ultralytics
 from huggingface_hub import ModelCard, ModelCardData
@@ -13,7 +15,7 @@ CARD_TEMPLATE = """
 
 {% if wandb_run_url %}[Wandb tracking run]({{ wandb_run_url }}){% endif %}
 
-This object detection model was fine-tuned using the Ultralytics YOLO library.
+This {{ model_type }} model was fine-tuned using the Ultralytics YOLO library.
 
 ## Model Details
 
@@ -22,7 +24,7 @@ This object detection model was fine-tuned using the Ultralytics YOLO library.
 <!-- Provide a longer summary of what this model is. -->
 
 - **Developed by:** {{ developers | default("[More Information Needed]", true)}}
-- **Model type:** {{ model_type | default("[More Information Needed]", true)}}
+- **Model type:** {{ model_type }}
 - **License:** {{ license | default("[More Information Needed]", true)}}
 - **Finetuned from model [optional]:** {{ base_model | default("[More Information Needed]", true)}}
 
@@ -88,13 +90,14 @@ def create_model_card(
     training_imgsz: int,
     training_batch_size: int,
     metrics_results_dict: dict[str, dict[str, float]],
+    task: Literal["classify", "detect"],
     license: str = "agpl-3.0",
     wandb_run_url: str | None = None,
 ) -> ModelCard:
     card_data = ModelCardData(
         license=license,
         library_name="ultralytics",
-        pipeline_tag="object-detection",
+        pipeline_tag="object-detection" if task == "detect" else "image-classification",
         datasets=[dataset_repo_id],
         base_model=base_model,
     )
@@ -103,7 +106,7 @@ def create_model_card(
         template_str=CARD_TEMPLATE,
         model_id=model_id,
         developers="Open Food Facts",
-        model_type="object detection",
+        model_type="object detection" if task == "detect" else "image classification",
         dataset_repo_id=dataset_repo_id,
         dataset_revision=dataset_revision,
         metrics_results_dict=metrics_results_dict,
