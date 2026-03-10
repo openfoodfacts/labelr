@@ -1,246 +1,9 @@
 import datetime
-import functools
-import json
 import os
-import pickle
-import tempfile
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
-import datasets
-import torch
-import tqdm
 import typer
-import wandb
-from datasets import Dataset
-from huggingface_hub import HfApi, ModelCard, ModelCardData
-from PIL import Image
-
-from labelr.dataset_features import OBJECT_DETECTION_DS_PREDICTION_FEATURES
-from labelr.export.common import _pickle_sample_generator
-from labelr.export.object_detection import (
-    export_from_hf_to_ultralytics_object_detection,
-)
-from labelr.utils import parse_hf_repo_id
-
-CARD_TEMPLATE = """
----
-# For reference on model card metadata, see the spec: https://github.com/huggingface/hub-docs/blob/main/modelcard.md?plain=1
-# Doc / guide: https://huggingface.co/docs/hub/model-cards
-{{ card_data }}
----
-
-# Model Card for {{ model_id | default("Model ID", true) }}
-
-{% if wandb_run_url %}[Wandb tracking run]({{ wandb_run_url }}){% endif %}
-
-This object detection model was fine-tuned using the Ultralytics YOLO library.
-
-## Model Details
-
-### Model Description
-
-<!-- Provide a longer summary of what this model is. -->
-
-- **Developed by:** {{ developers | default("[More Information Needed]", true)}}
-- **Model type:** {{ model_type | default("[More Information Needed]", true)}}
-- **License:** {{ license | default("[More Information Needed]", true)}}
-- **Finetuned from model [optional]:** {{ base_model | default("[More Information Needed]", true)}}
-
-## Training Details
-
-### Training Data
-
-The model was fine-tuned using the following dataset: [{{ dataset_repo_id }}](https://huggingface.co/datasets/{{ dataset_repo_id }}) (revision: `{{ dataset_revision }}`).
-
-### Training Procedure
-
-Dependency versions:
-
-- ultralytics: {{ ultralytics_version | default("[More Information Needed]", true)}}
-- pytorch: {{ pytorch_version | default("[More Information Needed]", true)}}
-
-#### Training Hyperparameters
-
-- **Epochs:** {{ training_epochs | default("[More Information Needed]", true)}}
-- **Batch size:** {{ training_batch_size | default("[More Information Needed]", true)}}
-- **Image size:** {{ training_imgsz | default("[More Information Needed]", true)}}
-
-## Evaluation
-
-The following evaluation metrics were obtained after training the model:
-
-{% for metric_name, metric_value in metrics_results_dict["pytorch"].items() %}
-- **{{ metric_name }}:** {{ metric_value }}
-{% endfor %}
-
-### Evaluation on exported models
-
-The model was also evaluated after exporting to ONNX and TensorRT formats. The following metrics were obtained:
-
-{% for format_name in ["onnx"] %}
-#### {{ format_name | upper }} export
-{% for metric_name, metric_value in metrics_results_dict[format_name].items() %}
-- **{{ metric_name }}:** {{ metric_value }}
-{% endfor %}
-{% endfor %}
-
-
-## Files
-
-Most files stored on the repo are standard files created during training with the Ultralytics YOLO library.
-
-What was added:
-
-- an ONNX export of the trained model (best model), stored in `weights/model.onnx`.
-- a Parquet file containing predictions on the full dataset, stored in `predictions.parquet`.
-- metrics JSON files for each exported model format, stored in `metrics_*.json`:
-    - `metrics.json`: metrics for the original PyTorch model
-    - `metrics_onnx.json`: metrics for the ONNX exported model
-"""
-
-
-def create_model_card(
-    dataset_repo_id: str,
-    dataset_revision: str,
-    model_id: str,
-    base_model: str,
-    training_epochs: int,
-    training_imgsz: int,
-    training_batch_size: int,
-    metrics_results_dict: dict[str, dict[str, float]],
-    license: str = "agpl-3.0",
-    wandb_run_url: str | None = None,
-) -> ModelCard:
-    import ultralytics
-
-    card_data = ModelCardData(
-        license=license,
-        library_name="ultralytics",
-        pipeline_tag="object-detection",
-        datasets=[dataset_repo_id],
-        base_model=base_model,
-    )
-    return ModelCard.from_template(
-        card_data,
-        template_str=CARD_TEMPLATE,
-        model_id=model_id,
-        developers="Open Food Facts",
-        model_type="object detection",
-        dataset_repo_id=dataset_repo_id,
-        dataset_revision=dataset_revision,
-        metrics_results_dict=metrics_results_dict,
-        training_epochs=training_epochs,
-        training_imgsz=training_imgsz,
-        training_batch_size=training_batch_size,
-        ultralytics_version=ultralytics.__version__,
-        pytorch_version=torch.__version__,
-        wandb_run_url=wandb_run_url,
-    )
-
-
-def create_predict_dataset(
-    model: "ultralytics.YOLO",
-    ds: Dataset,
-    output_path: Path,
-    imgsz: int,
-    conf: float = 0.25,
-):
-    """Create a Parquet dataset with model predictions."""
-    # Run the model on the full dataset, draw bounding boxes on images, and
-    # save them as a Hugging Face dataset
-
-    if output_path.exists():
-        raise ValueError(f"Output parquet file already exists: {output_path}")
-
-    with tempfile.TemporaryDirectory() as tmpdirname_str:
-        tmp_dir = Path(tmpdirname_str)
-        for split_name in ds.keys():
-            for i, sample in tqdm.tqdm(enumerate(ds[split_name])):
-                image_id = sample["image_id"]
-                image = sample["image"]
-                res = model.predict(
-                    source=image,
-                    imgsz=imgsz,
-                    save=False,
-                    verbose=False,
-                    conf=conf,
-                )[0]
-                # res.plot() returns an image (numpy array) with boxes drawn
-                plotted = res.plot()
-                # convert BGR to RGB
-                plotted = plotted[:, :, ::-1]
-                pil_img = Image.fromarray(plotted)
-
-                boxes = res.boxes
-                # Convert ultralytics xyxyn format to
-                # (y_min, x_min, y_max, x_max)
-                xyxyn = [
-                    (y_min, x_min, y_max, x_max)
-                    for (x_min, y_min, x_max, y_max) in boxes.xyxyn.cpu()
-                    .numpy()
-                    .tolist()
-                ]
-                record = {
-                    "image": image,
-                    "image_with_predictions": pil_img,
-                    "detected": {
-                        "bbox": xyxyn,
-                        "category_id": boxes.cls.cpu().numpy().astype("int64").tolist(),
-                        "category_name": [
-                            model.names[int(c)] for c in boxes.cls.cpu().numpy()
-                        ],
-                        "confidence": boxes.conf.cpu().numpy().tolist(),
-                    },
-                    "split": split_name,
-                    "image_id": image_id,
-                    "objects": sample["objects"],
-                }
-
-                if "width" in sample:
-                    record["width"] = sample["width"]
-                if "height" in sample:
-                    record["height"] = sample["height"]
-
-                if "meta" in sample:
-                    record["meta"] = sample["meta"]
-
-                with open(tmp_dir / f"{i:06d}.pkl", "wb") as f:
-                    pickle.dump(record, f)
-
-        # Build a Hugging Face dataset where each example contains the plotted
-        # image
-        ds = Dataset.from_generator(
-            functools.partial(_pickle_sample_generator, tmp_dir),
-            features=OBJECT_DETECTION_DS_PREDICTION_FEATURES,
-        )
-        ds.to_parquet(output_path)
-        typer.echo(f"Saved Hugging Face dataset as Parquet file to: {output_path}")
-
-
-def generate_ultralytics_settings(root_dir: Path) -> dict:
-    return {
-        "settings_version": "0.0.6",
-        "datasets_dir": f"{root_dir}/datasets",
-        "weights_dir": f"{root_dir}/weights",
-        "runs_dir": f"{root_dir}/runs",
-        "uuid": "08c1ccdf367db40afac4e8d21426192fc60fab1eb920743fcb7daaf744cf1752",
-        "sync": True,
-        "api_key": "",
-        "openai_api_key": "",
-        "clearml": False,
-        "comet": False,
-        "dvc": False,
-        "hub": False,
-        "mlflow": False,
-        "neptune": False,
-        "raytune": False,
-        "tensorboard": False,
-        "wandb": True,
-        "vscode_msg": False,
-        "openvino_msg": False,
-    }
-
 
 WANDB_RUN_URL = None
 
@@ -261,7 +24,7 @@ def main(
         str,
         typer.Argument(
             envvar="HF_REPO_ID",
-            help="Hugging Face repo ID of the dataset to train on."
+            help="Hugging Face repo ID of the dataset to train on. "
             "The revision can be specified with '@revision' suffix (ex: @main).",
         ),
     ],
@@ -292,17 +55,17 @@ def main(
         ),
     ] = None,
     model_name: Annotated[
-        str,
+        str | None,
         typer.Argument(
             envvar="YOLO_MODEL_NAME",
-            help="Name of the base YOLO model to use for training",
+            help="Name of the base YOLO model to use for training. Defaults to yolov8n.",
         ),
-    ] = "yolov8n.pt",
+    ] = None,
     epochs: Annotated[
-        int, typer.Argument(envvar="EPOCHS", help="Number of epochs")
+        int, typer.Option(envvar="EPOCHS", help="Number of epochs")
     ] = 100,
-    imgsz: Annotated[int, typer.Argument(envvar="IMGSZ")] = 640,
-    batch: Annotated[int, typer.Argument(envvar="BATCH_SIZE")] = 64,
+    imgsz: Annotated[int, typer.Option(envvar="IMGSZ")] = 640,
+    batch: Annotated[int, typer.Option(envvar="BATCH_SIZE")] = 64,
     skip_dataset_download: Annotated[
         bool, typer.Option(help="Skip dataset download step, only for debugging")
     ] = False,
@@ -310,16 +73,42 @@ def main(
         Path | None,
         typer.Option(help="Root directory for the project", envvar="ROOT_DIR"),
     ] = None,
+    task: Annotated[
+        Literal["detect", "classify"],
+        typer.Option(
+            help="The task to perform, either 'detect' for object detection or 'classify' for image classification",
+        ),
+    ] = "detect",
 ):
-    if not os.getenv("HF_TOKEN"):
-        raise ValueError(
-            "HF_TOKEN environment variable not set. This is required to push the trained model to Hugging Face."
-        )
+    from train_yolo.utils import check_envvar, save_ultralytics_settings
 
-    if not os.getenv("WANDB_API_KEY"):
-        raise ValueError(
-            "WANDB_API_KEY environment variable not set. This is required to log training runs to Weights & Biases."
-        )
+    check_envvar()
+    if root_dir is None:
+        root_dir = Path(os.getcwd())
+
+    save_ultralytics_settings(root_dir)
+    # Setting the YOLO_CONFIG_DIR environment variable to the directory containing
+    # the settings.json file, so that the ultralytics library can find it
+    os.environ["YOLO_CONFIG_DIR"] = str(root_dir)
+
+    import datasets
+    import wandb
+    from huggingface_hub import HfApi
+    from labelr.export.object_detection import (
+        export_from_hf_to_ultralytics_object_detection,
+    )
+    from labelr.utils import parse_hf_repo_id
+    import ultralytics
+
+    from train_yolo.image_classification import (
+        ImageClassificationTrainer,
+        ImageClassificationValidator,
+        export_from_hf_to_ultralytics_image_classification,
+    )
+    from train_yolo.model_card import create_model_card
+    from train_yolo.object_detection import object_detection_create_predict_dataset
+
+    dataset_dir = root_dir / "datasets"
 
     datestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     if run_name is None:
@@ -328,21 +117,6 @@ def main(
     if wandb_api_key:
         wandb.login(key=wandb_api_key)
 
-    hf_api = HfApi()
-    if root_dir is None:
-        root_dir = Path(os.getcwd())
-
-    ultralytics_settings = generate_ultralytics_settings(root_dir)
-    settings_dir = root_dir / "Ultralytics"
-    settings_dir.mkdir(exist_ok=True)
-    (settings_dir / "settings.json").write_text(
-        json.dumps(ultralytics_settings, indent=2)
-    )
-    # Setting the YOLO_CONFIG_DIR environment variable to the directory containing
-    # the settings.json file, so that the ultralytics library can find it
-    os.environ["YOLO_CONFIG_DIR"] = str(root_dir)
-
-    dataset_dir = root_dir / "datasets"
     run_dir = (root_dir / "runs" / "detect" / project / run_name).absolute()
 
     hf_repo_id, revision = parse_hf_repo_id(hf_repo_id)
@@ -350,23 +124,42 @@ def main(
     # `skip_dataset_download` is an option to skip dataset download, useful
     # for debugging locally
     if not skip_dataset_download:
-        export_from_hf_to_ultralytics_object_detection(
-            repo_id=hf_repo_id,
-            output_dir=dataset_dir,
-            revision=revision,
-            download_images=False,
-            error_raise=True,
-        )
+        if task == "detect":
+            export_from_hf_to_ultralytics_object_detection(
+                repo_id=hf_repo_id,
+                output_dir=dataset_dir,
+                revision=revision,
+                download_images=False,
+                error_raise=True,
+            )
+        else:
+            export_from_hf_to_ultralytics_image_classification(
+                repo_id=hf_repo_id,
+                output_dir=dataset_dir,
+                revision=revision,
+                download_images=False,
+                error_raise=True,
+            )
 
-    import ultralytics
+    # Ultralytics expects the `data` parameter to be data.yml for object detection tasks
+    # and the data directory for image classification tasks
+    dataset_path = (
+        dataset_dir / "data.yaml" if task == "detect" else dataset_dir / "data"
+    )
 
-    model = ultralytics.YOLO(model_name, task="detect")
+    if model_name is None:
+        model_name = "yolov8n.pt" if task == "detect" else "yolov8n-cls.pt"
+
+    # After training, ultralytics re-loads the best model weights
+    model = ultralytics.YOLO(model_name, task=task)
     model.add_callback("on_train_start", register_wanb_run_url)
     typer.echo(f"Starting training run: {run_name}")
 
-    dataset_path = dataset_dir / "data.yaml"
-    # After training, ultralytics re-loads the best model weights
+    # Use a custom trainer for image classification to apply LetterBox
+    # layout
+    trainer = ImageClassificationTrainer if task == "classify" else None
     model.train(
+        trainer=trainer,
         data=dataset_path,
         imgsz=imgsz,
         batch=batch,
@@ -400,12 +193,14 @@ def main(
 
     ds = datasets.load_dataset(hf_repo_id, revision=revision)
     # After training, run prediction on the full dataset and save results
-    create_predict_dataset(
-        model=model,
-        ds=ds,
-        output_path=run_dir / "predictions.parquet",
-        imgsz=imgsz,
-    )
+
+    if task == "detect":
+        object_detection_create_predict_dataset(
+            model=model,
+            ds=ds,
+            output_path=run_dir / "predictions.parquet",
+            imgsz=imgsz,
+        )
 
     typer.echo("Running validation on exported models to get metrics")
     # Run validation to get metrics for exported models
@@ -413,8 +208,10 @@ def main(
         (run_dir / "weights/best.pt", "pytorch"),
         (run_dir / "weights/model.onnx", "onnx"),
     ]:
-        model = ultralytics.YOLO(exported_model_path, task="detect")
+        model = ultralytics.YOLO(exported_model_path, task=task)
+        validator = ImageClassificationValidator if task == "classify" else None
         metrics = model.val(
+            validator=validator,
             data=dataset_path,
             imgsz=imgsz,
             batch=batch,
@@ -425,6 +222,7 @@ def main(
         (run_dir / f"metrics{suffix}.json").write_text(metrics.to_json())
 
     typer.echo(f"Uploading trained model to Hugging Face repo: {trained_model_repo_id}")
+    hf_api = HfApi()
     hf_api.create_repo(
         repo_id=trained_model_repo_id,
         repo_type="model",

@@ -310,9 +310,6 @@ def export_from_hf_to_ultralytics_object_detection(
     """Export annotations from a Hugging Face dataset project to the
     Ultralytics format.
 
-    The Label Studio project should be an object detection project with a
-    single rectanglelabels annotation result per task.
-
     Args:
         repo_id (str): Hugging Face repository ID to load the dataset from.
         output_dir (Path): Path to the output directory.
