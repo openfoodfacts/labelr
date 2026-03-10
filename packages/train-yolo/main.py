@@ -66,6 +66,9 @@ def main(
     ] = 100,
     imgsz: Annotated[int, typer.Option(envvar="IMGSZ")] = 640,
     batch: Annotated[int, typer.Option(envvar="BATCH_SIZE")] = 64,
+    workers: Annotated[
+        int, typer.Option(help="Number of data loading workers", envvar="WORKERS")
+    ] = 8,
     skip_dataset_download: Annotated[
         bool, typer.Option(help="Skip dataset download step, only for debugging")
     ] = False,
@@ -77,6 +80,7 @@ def main(
         Literal["detect", "classify"],
         typer.Option(
             help="The task to perform, either 'detect' for object detection or 'classify' for image classification",
+            envvar="TASK",
         ),
     ] = "detect",
 ):
@@ -166,6 +170,7 @@ def main(
         epochs=epochs,
         project=project,
         name=run_name,
+        workers=workers,
     )
 
     if batch < 0:
