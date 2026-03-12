@@ -175,7 +175,6 @@ def export_from_hf_to_ultralytics_image_classification(
         "Repo ID: %s, revision: %s, skip labels: %s", repo_id, revision, skip_labels
     )
     ds = datasets.load_dataset(repo_id, revision=revision)
-    label_feature = ds.features["label"]
     data_dir = output_dir / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
 
@@ -189,6 +188,7 @@ def export_from_hf_to_ultralytics_image_classification(
 
     for split in ["train", "val"]:
         split_target = split_map[split]
+        label_feature = ds[split_target].features["label"]
         split_dir = data_dir / split
         split_dir.mkdir(parents=True, exist_ok=True)
 
@@ -263,7 +263,6 @@ def image_classification_create_predict_dataset(
     ds: Dataset,
     output_path: Path,
     imgsz: int,
-    label_names: list[str],
     conf: float = 0.25,
 ):
     """Create a Parquet dataset with model predictions."""
@@ -272,6 +271,7 @@ def image_classification_create_predict_dataset(
     if output_path.exists():
         raise ValueError(f"Output parquet file already exists: {output_path}")
 
+    label_names = typing.cast(Dataset, ds["train"]).features["label"].names
     ds_features = generate_image_classification_prediction_features(label_names)
     with tempfile.TemporaryDirectory() as tmpdirname_str:
         tmp_dir = Path(tmpdirname_str)
@@ -287,7 +287,7 @@ def image_classification_create_predict_dataset(
                     verbose=False,
                     conf=conf,
                 )[0]
-                probs = res.probs.cpu().numpy()
+                probs = res.probs.data.cpu().numpy()
                 label_id = probs.argmax().item()
                 confidence = probs[label_id].item()
                 record = {

@@ -83,6 +83,14 @@ def main(
             envvar="TASK",
         ),
     ] = "detect",
+    overwrite: Annotated[
+        bool,
+        typer.Option(
+            help="Whether to overwrite the output directory if it already exists. "
+            "Use with caution, as this will delete existing files.",
+            envvar="OVERWRITE",
+        ),
+    ] = False,
 ):
     from train_yolo.utils import check_envvar, save_ultralytics_settings
 
@@ -94,6 +102,8 @@ def main(
     # Setting the YOLO_CONFIG_DIR environment variable to the directory containing
     # the settings.json file, so that the ultralytics library can find it
     os.environ["YOLO_CONFIG_DIR"] = str(root_dir)
+
+    import shutil
 
     import datasets
     import wandb
@@ -123,6 +133,16 @@ def main(
         wandb.login(key=wandb_api_key)
 
     run_dir = (root_dir / "runs" / task / project / run_name).absolute()
+
+    if run_dir.exists():
+        if overwrite:
+            typer.echo(f"Run directory already exists, deleting: {run_dir}.")
+            shutil.rmtree(run_dir)
+        else:
+            raise ValueError(
+                f"Run directory already exists: {run_dir}. "
+                "Pass --overwrite to overwrite existing run."
+            )
 
     hf_repo_id, revision = parse_hf_repo_id(hf_repo_id)
 
@@ -154,6 +174,12 @@ def main(
 
     if model_name is None:
         model_name = "yolov8n.pt" if task == "detect" else "yolov8n-cls.pt"
+    else:
+        if task == "classify" and "-cls" not in model_name:
+            raise ValueError(
+                "For image classification task, the model name should contain '-cls' suffix. "
+                "Either provide a valid model name or let it default to 'yolov8n-cls.pt'"
+            )
 
     # After training, ultralytics re-loads the best model weights
     model = ultralytics.YOLO(model_name, task=task)
@@ -213,7 +239,6 @@ def main(
             ds=ds,
             output_path=run_dir / "predictions.parquet",
             imgsz=imgsz,
-            label_names=label_names,
         )
 
     typer.echo("Running validation on exported models to get metrics")
