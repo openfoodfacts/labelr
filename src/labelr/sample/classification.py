@@ -137,8 +137,7 @@ def format_image_classification_sample_to_hf(
         "width": width,
         "height": height,
         "meta": meta,
-        "category_id": label_id,
-        "category_name": label_name,
+        "label": label_id,
     }
 
 
@@ -158,15 +157,20 @@ def format_annotation_results(label: str):
 
 
 def get_hf_image_classification_features(
+    label_names: list[str],
     meta_schema: JSONType | None = None,
 ) -> datasets.Features:
     """Get the HuggingFace Dataset features for image classification.
 
     Args:
-        is_openfoodfacts_dataset (bool): Whether the dataset is an Open Food
-            Facts dataset. If True, the dataset will include additional
-            metadata fields specific to Open Food Facts (`barcode` and
-            `off_image_id`).
+        label_names: The list of label names.
+        meta_schema (JSONType | None): If provided, the metadata of the samples will
+            be formatted according to the given meta schema. The meta schema should
+            be a dictionary that defines the structure of the metadata. The keys of
+            the dictionary are the field names, and the values are the field types
+            (e.g., "string", "integer", "float", or "sequence[string]").
+    Returns:
+        The HuggingFace Dataset Features.
     """
     features_dict = {
         "image_id": datasets.Value("string"),
@@ -176,8 +180,7 @@ def get_hf_image_classification_features(
         "meta": {
             "image_url": datasets.Value("string"),
         },
-        "category_id": datasets.Value("int64"),
-        "category_name": datasets.Value("string"),
+        "label": datasets.ClassLabel(num_classes=len(label_names), names=label_names),
     }
 
     if meta_schema:

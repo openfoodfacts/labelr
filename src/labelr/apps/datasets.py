@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from openfoodfacts import Flavor
 from openfoodfacts.utils import get_logger
 
 from .label_studio import typer_description

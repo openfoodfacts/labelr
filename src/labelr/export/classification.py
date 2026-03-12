@@ -37,7 +37,10 @@ def export_from_ultralytics_to_hf_classification(
     """
     logger.info("Repo ID: %s, dataset_dir: %s", repo_id, dataset_dir)
 
-    ds_features = get_hf_image_classification_features()
+    if merge_labels:
+        label_names = ["object"]
+
+    ds_features = get_hf_image_classification_features(label_names=label_names)
     if not any((dataset_dir / split).is_dir() for split in ["train", "val", "test"]):
         raise ValueError(
             f"Dataset directory {dataset_dir} does not contain 'train', 'val' or 'test' subdirectories"
@@ -80,8 +83,7 @@ def export_from_ultralytics_to_hf_classification(
                         "width": image.width,
                         "height": image.height,
                         "meta": {},
-                        "category_id": label_id,
-                        "category_name": label_name,
+                        "label": label_id,
                     }
                     with open(tmp_dir / f"{split}_{image_id}.pkl", "wb") as f:
                         pickle.dump(sample, f)
@@ -150,7 +152,9 @@ def export_from_ls_to_hf_classification(
         with open(meta_schema_path, "rb") as f:
             meta_schema = orjson.loads(f.read())
 
-    ds_features = get_hf_image_classification_features(meta_schema=meta_schema)
+    ds_features = get_hf_image_classification_features(
+        label_names, meta_schema=meta_schema
+    )
     # Save output as pickle
     for split in ["train", "val", "test"]:
         logger.info("Processing split: %s", split)
