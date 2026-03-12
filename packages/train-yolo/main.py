@@ -108,6 +108,7 @@ def main(
         ImageClassificationTrainer,
         ImageClassificationValidator,
         export_from_hf_to_ultralytics_image_classification,
+        image_classification_create_predict_dataset,
     )
     from train_yolo.model_card import create_model_card
     from train_yolo.object_detection import object_detection_create_predict_dataset
@@ -206,6 +207,14 @@ def main(
             output_path=run_dir / "predictions.parquet",
             imgsz=imgsz,
         )
+    else:
+        image_classification_create_predict_dataset(
+            model=model,
+            ds=ds,
+            output_path=run_dir / "predictions.parquet",
+            imgsz=imgsz,
+            label_names=label_names,
+        )
 
     typer.echo("Running validation on exported models to get metrics")
     # Run validation to get metrics for exported models
@@ -274,6 +283,7 @@ def main(
         training_imgsz=imgsz,
         training_batch_size=batch,
         metrics_results_dict=metrics_results_dict,
+        task=task,
         wandb_run_url=WANDB_RUN_URL,
     )
     model_card.push_to_hub(

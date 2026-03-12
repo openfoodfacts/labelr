@@ -90,7 +90,7 @@ def create_model_card(
     training_imgsz: int,
     training_batch_size: int,
     metrics_results_dict: dict[str, dict[str, float]],
-    task: Literal["classify", "detect"],
+    task: Literal["detect", "classify"],
     license: str = "agpl-3.0",
     wandb_run_url: str | None = None,
 ) -> ModelCard:

@@ -1,17 +1,24 @@
+import functools
 import logging
 from pathlib import Path
+import pickle
+import tempfile
 import typing
-
-import datasets
-from openfoodfacts.images import download_image
-import tqdm
 
 import albumentations as A
 from albumentations.pytorch.transforms import ToTensorV2
 import cv2
+import datasets
+from datasets import Dataset, Features, Value, ClassLabel
+from datasets import Image as HFImage
+from labelr.export.common import _pickle_sample_generator
 import numpy as np
+from openfoodfacts.images import download_image
 from PIL import Image, ImageOps
 import torch
+import tqdm
+import typer
+import ultralytics
 from ultralytics.data.dataset import ClassificationDataset
 from ultralytics.models.yolo.classify import (
     ClassificationPredictor,
@@ -168,9 +175,9 @@ def export_from_hf_to_ultralytics_image_classification(
         "Repo ID: %s, revision: %s, skip labels: %s", repo_id, revision, skip_labels
     )
     ds = datasets.load_dataset(repo_id, revision=revision)
+    label_feature = ds.features["label"]
     data_dir = output_dir / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
-    label_id_to_name = {}
 
     split_map = {
         "train": "train",
@@ -222,13 +229,97 @@ def export_from_hf_to_ultralytics_image_classification(
                     (image_max_size, image_max_size), Image.Resampling.LANCZOS
                 )
 
-            label_id = sample["category_id"]
-            label_name = sample["category_name"]
-
-            if label_id not in label_id_to_name:
-                label_id_to_name[label_id] = label_name
+            label_id = sample["label"]
+            label_name = label_feature.int2str(label_id)
 
             label_dir = split_dir / label_name
             label_dir.mkdir(parents=True, exist_ok=True)
 
             image.save(label_dir / f"{image_id}.jpg")
+
+
+def generate_image_classification_prediction_features(
+    label_names: list[str],
+) -> Features:
+    label_features = ClassLabel(num_classes=len(label_names), names=label_names)
+    return Features(
+        {
+            "image": HFImage(),
+            "image_id": Value("string"),
+            "detected": {
+                "label": label_features,
+                "confidence": Value("float32"),
+            },
+            "split": Value("string"),
+            "width": Value("int64"),
+            "height": Value("int64"),
+            "label": label_features,
+        }
+    )
+
+
+def image_classification_create_predict_dataset(
+    model: ultralytics.YOLO,
+    ds: Dataset,
+    output_path: Path,
+    imgsz: int,
+    label_names: list[str],
+    conf: float = 0.25,
+):
+    """Create a Parquet dataset with model predictions."""
+    # Run the model on the full dataset and save them as a Hugging Face dataset
+
+    if output_path.exists():
+        raise ValueError(f"Output parquet file already exists: {output_path}")
+
+    ds_features = generate_image_classification_prediction_features(label_names)
+    with tempfile.TemporaryDirectory() as tmpdirname_str:
+        tmp_dir = Path(tmpdirname_str)
+        for split_name in ds.keys():
+            for i, sample in tqdm.tqdm(enumerate(ds[split_name])):
+                image_id = sample["image_id"]
+                image = sample["image"]
+                res = model.predict(
+                    predictor=ImageClassificationPredictor,
+                    source=image,
+                    imgsz=imgsz,
+                    save=False,
+                    verbose=False,
+                    conf=conf,
+                )[0]
+                probs = res.probs.cpu().numpy()
+                label_id = probs.argmax().item()
+                confidence = probs[label_id].item()
+                record = {
+                    "image": image,
+                    "image_id": image_id,
+                    "detected": {
+                        "label": label_id,
+                        "confidence": confidence,
+                    },
+                    "split": split_name,
+                    "label": sample["label"],
+                }
+
+                if "width" in sample:
+                    record["width"] = sample["width"]
+                if "height" in sample:
+                    record["height"] = sample["height"]
+
+                if "meta" in sample:
+                    record["meta"] = sample["meta"]
+
+                with open(tmp_dir / f"{i:06d}.pkl", "wb") as f:
+                    pickle.dump(record, f)
+
+        # Build a Hugging Face dataset where each example contains the plotted
+        # image
+        output_ds = typing.cast(
+            Dataset,
+            Dataset.from_generator(
+                functools.partial(_pickle_sample_generator, tmp_dir),
+                features=ds_features,
+            ),
+        )
+        output_ds.to_parquet(output_path)
+        typer.echo(f"Saved Hugging Face dataset as Parquet file to: {output_path}")
