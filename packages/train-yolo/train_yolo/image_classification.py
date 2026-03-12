@@ -260,6 +260,7 @@ def generate_image_classification_prediction_features(
 
 def image_classification_create_predict_dataset(
     model: ultralytics.YOLO,
+    predictor_cls: type[ClassificationPredictor] | None,
     ds: Dataset,
     output_path: Path,
     imgsz: int,
@@ -280,7 +281,7 @@ def image_classification_create_predict_dataset(
                 image_id = sample["image_id"]
                 image = sample["image"]
                 res = model.predict(
-                    predictor=ImageClassificationPredictor,
+                    predictor=predictor_cls,
                     source=image,
                     imgsz=imgsz,
                     save=False,

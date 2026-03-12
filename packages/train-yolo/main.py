@@ -64,6 +64,27 @@ def main(
     epochs: Annotated[
         int, typer.Option(envvar="EPOCHS", help="Number of epochs")
     ] = 100,
+    use_custom_augmentations: Annotated[
+        bool,
+        typer.Option(
+            help="Whether to use custom augmentations for training (image "
+            "classification only). The custom augmentation pipeline uses "
+            "Albumentations to apply LetterBox transformation at the beginning of the "
+            "pipeline, in order to keep the original aspect ratio of the image while "
+            "preventing information loss. By default, the standard augmentations "
+            "provided by the Ultralytics YOLO library are used.",
+            envvar="USE_CUSTOM_AUGMENTATIONS",
+        ),
+    ] = False,
+    validation_keep_aspect_ratio: Annotated[
+        bool,
+        typer.Option(
+            help="Whether to keep the aspect ratio of images during validation "
+            "(image classification only). Always True if `use_custom_augmentations` "
+            "is True.",
+            envvar="VALIDATION_KEEP_ASPECT_RATIO",
+        ),
+    ] = False,
     imgsz: Annotated[int, typer.Option(envvar="IMGSZ")] = 640,
     batch: Annotated[int, typer.Option(envvar="BATCH_SIZE")] = 64,
     workers: Annotated[
@@ -115,6 +136,7 @@ def main(
     import ultralytics
 
     from train_yolo.image_classification import (
+        ClassificationPredictor,
         ImageClassificationTrainer,
         ImageClassificationValidator,
         export_from_hf_to_ultralytics_image_classification,
@@ -122,6 +144,12 @@ def main(
     )
     from train_yolo.model_card import create_model_card
     from train_yolo.object_detection import object_detection_create_predict_dataset
+
+    if task == "detect":
+        validation_keep_aspect_ratio = False
+
+    elif task == "classify" and use_custom_augmentations:
+        validation_keep_aspect_ratio = True
 
     dataset_dir = root_dir / "datasets"
 
@@ -188,7 +216,11 @@ def main(
 
     # Use a custom trainer for image classification to apply LetterBox
     # layout
-    trainer = ImageClassificationTrainer if task == "classify" else None
+    trainer = (
+        ImageClassificationTrainer
+        if task == "classify" and use_custom_augmentations
+        else None
+    )
     model.train(
         trainer=trainer,
         data=dataset_path,
@@ -236,6 +268,9 @@ def main(
     else:
         image_classification_create_predict_dataset(
             model=model,
+            predictor_cls=(
+                ClassificationPredictor if validation_keep_aspect_ratio else None
+            ),
             ds=ds,
             output_path=run_dir / "predictions.parquet",
             imgsz=imgsz,
@@ -248,7 +283,9 @@ def main(
         (run_dir / "weights/model.onnx", "onnx"),
     ]:
         model = ultralytics.YOLO(exported_model_path, task=task)
-        validator = ImageClassificationValidator if task == "classify" else None
+        validator = (
+            ImageClassificationValidator if validation_keep_aspect_ratio else None
+        )
         metrics = model.val(
             validator=validator,
             data=dataset_path,
