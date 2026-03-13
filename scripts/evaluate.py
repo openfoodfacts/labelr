@@ -60,6 +60,7 @@ def generate_image_classification_prediction_features(
             "detected": {
                 "label": label_features,
                 "confidence": datasets.Value("float32"),
+                "probs": datasets.Sequence(datasets.Value("float32")),
             },
             "split": datasets.Value("string"),
             "width": datasets.Value("int64"),

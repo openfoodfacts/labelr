@@ -9,7 +9,7 @@ import albumentations as A
 from albumentations.pytorch.transforms import ToTensorV2
 import cv2
 import datasets
-from datasets import Dataset, Features, Value, ClassLabel
+from datasets import Dataset, Features, Value, ClassLabel, Sequence
 from datasets import Image as HFImage
 from labelr.export.common import _pickle_sample_generator
 import numpy as np
@@ -250,6 +250,7 @@ def generate_image_classification_prediction_features(
             "detected": {
                 "label": label_features,
                 "confidence": Value("float32"),
+                "probs": Sequence(Value("float32")),
             },
             "split": Value("string"),
             "width": Value("int64"),
@@ -298,6 +299,7 @@ def image_classification_create_predict_dataset(
                     "detected": {
                         "label": label_id,
                         "confidence": confidence,
+                        "probs": probs.tolist(),
                     },
                     "split": split_name,
                     "label": sample["label"],
