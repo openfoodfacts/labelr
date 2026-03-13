@@ -17,7 +17,7 @@ def object_detection_create_predict_dataset(
     ds: Dataset,
     output_path: Path,
     imgsz: int,
-    conf: float = 0.25,
+    conf: float = 0.1,
 ):
     """Create a Parquet dataset with model predictions."""
     # Run the model on the full dataset, draw bounding boxes on images, and
