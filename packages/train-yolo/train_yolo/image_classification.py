@@ -232,7 +232,8 @@ def export_from_hf_to_ultralytics_image_classification(
             label_id = sample["label"]
             label_name = label_feature.int2str(label_id)
 
-            label_dir = split_dir / label_name
+            # Add label ID prefix to ensure the label order is preserved
+            label_dir = split_dir / f"{label_id:03}_{label_name}"
             label_dir.mkdir(parents=True, exist_ok=True)
 
             image.save(label_dir / f"{image_id}.jpg")
