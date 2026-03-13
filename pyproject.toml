@@ -31,9 +31,6 @@ labelr = "labelr.main:app"
 ultralytics = [
     "ultralytics==8.4.8",
 ]
-fiftyone = [
-    "fiftyone~=1.10.0"
-]
 
 [tool.uv]
 package = true
