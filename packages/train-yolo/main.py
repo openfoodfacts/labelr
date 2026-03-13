@@ -136,7 +136,7 @@ def main(
     import ultralytics
 
     from train_yolo.image_classification import (
-        ClassificationPredictor,
+        ImageClassificationPredictor,
         ImageClassificationTrainer,
         ImageClassificationValidator,
         export_from_hf_to_ultralytics_image_classification,
@@ -269,7 +269,7 @@ def main(
         image_classification_create_predict_dataset(
             model=model,
             predictor_cls=(
-                ClassificationPredictor if validation_keep_aspect_ratio else None
+                ImageClassificationPredictor if validation_keep_aspect_ratio else None
             ),
             ds=ds,
             output_path=run_dir / "predictions.parquet",
