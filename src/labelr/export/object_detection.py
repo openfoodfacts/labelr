@@ -7,6 +7,7 @@ import typing
 from pathlib import Path
 
 import datasets
+from huggingface_hub import HfApi
 import tqdm
 from label_studio_sdk.client import LabelStudio
 from openfoodfacts.images import download_image
@@ -33,6 +34,7 @@ def export_from_ls_to_hf_object_detection(
     use_aws_cache: bool = True,
     revision: str = "main",
     skip_labels: list[str] | None = None,
+    add_repo_tag: str | None = None,
 ) -> None:
     """Export annotations from a Label Studio project to a Hugging Face
     dataset.
@@ -60,6 +62,8 @@ def export_from_ls_to_hf_object_detection(
         skip_labels (list[str] | None): List of label names to skip. If the
             label of an annotation result is in this list, it will be skipped.
             Defaults to None.
+        add_repo_tag (str | None): Tag to add to the Hugging Face Datasets
+            repository. Defaults to None.
     """
     if merge_labels:
         label_names = ["object"]
@@ -108,6 +112,12 @@ def export_from_ls_to_hf_object_detection(
                 features=features,
             )
             hf_ds.push_to_hub(repo_id, split=split, revision=revision)
+
+    if add_repo_tag is not None:
+        api = HfApi()
+        api.create_tag(
+            repo_id, tag=add_repo_tag, revision=revision, repo_type="dataset"
+        )
 
 
 def export_from_ls_to_ultralytics_object_detection(

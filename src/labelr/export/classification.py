@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path
 
 import datasets
+from huggingface_hub import HfApi
 from label_studio_sdk import LabelStudio
 from PIL import Image, ImageOps
 import orjson
@@ -106,6 +107,7 @@ def export_from_ls_to_hf_classification(
     revision: str | None = None,
     skip_labels: list[str] | None = None,
     meta_schema_path: Path | None = None,
+    add_repo_tag: str | None = None,
 ) -> None:
     """Export annotations of an image classification project from a Label
     Studio project to a Hugging Face dataset.
@@ -130,6 +132,8 @@ def export_from_ls_to_hf_classification(
         meta_schema_path (Path | None): If provided, the metadata of the samples will
         be formatted according to the given meta schema file. The meta schema file
         should be a JSON file that defines the structure of the metadata.
+        add_repo_tag (str | None): If provided, the given git tag will be set to the
+            Hugging Face Datasets repository after the export is complete.
     """
     if merge_labels:
         label_names = ["object"]
@@ -210,3 +214,9 @@ def export_from_ls_to_hf_classification(
                 features=ds_features,
             )
             hf_ds.push_to_hub(repo_id, split=split)
+
+    if add_repo_tag is not None:
+        api = HfApi()
+        api.create_tag(
+            repo_id, tag=add_repo_tag, revision=revision, repo_type="dataset"
+        )

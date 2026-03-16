@@ -225,6 +225,13 @@ def export(
             "Only used when importing from or exporting to Hugging Face Datasets."
         ),
     ] = "main",
+    add_repo_tag: Annotated[
+        str | None,
+        typer.Option(
+            help="Tag to add to the Hugging Face Datasets repository. "
+            "Only used when exporting to Hugging Face Datasets."
+        ),
+    ] = None,
     meta_schema_path: Annotated[
         Path | None,
         typer.Option(
@@ -303,6 +310,7 @@ def export(
                     view_id=view_id,
                     image_max_size=image_max_size,
                     skip_labels=skip_labels_list,
+                    add_repo_tag=add_repo_tag,
                 )
             elif task_type == TaskType.classification:
                 export_from_ls_to_hf_classification(
@@ -316,6 +324,7 @@ def export(
                     revision=revision,
                     skip_labels=skip_labels_list,
                     meta_schema_path=meta_schema_path,
+                    add_repo_tag=add_repo_tag,
                 )
             else:
                 raise typer.BadParameter("Unsupported task type")
