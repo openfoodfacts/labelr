@@ -188,13 +188,17 @@ def _visualize(
         # Print the first few samples in the dataset
         print(fo_dataset.head())
 
-        # Visualize the dataset in the FiftyOne App
-        session = fo.launch_app(fo_dataset)
-
         if task == "detect":
             fo_dataset.evaluate_detections(
                 "model", gt_field="ground_truth", eval_key="eval", compute_mAP=True
             )
+        else:
+            fo_dataset.evaluate_classifications(
+                "model", gt_field="ground_truth", eval_key="eval"
+            )
+
+        # Visualize the dataset in the FiftyOne App
+        session = fo.launch_app(fo_dataset)
         session.wait()
 
 
