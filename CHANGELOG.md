@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.16.0](https://github.com/openfoodfacts/labelr/compare/v0.15.0...v0.16.0) (2026-03-16)
+
+
+### Features
+
+* add new ls image-classification subcommand ([aca853c](https://github.com/openfoodfacts/labelr/commit/aca853c0c3d8f098ea2c2ca64590e241fb3d2233))
+* allow to add tag to exported dataset with --add-repo-tag option ([c165492](https://github.com/openfoodfacts/labelr/commit/c1654927ea3e39e88bb94c7b431b6dbc0ea6c055))
+* allow to export image classification tasks to HF ([3bd76c0](https://github.com/openfoodfacts/labelr/commit/3bd76c08ef189d01cfc32ac1cd43437dd1e8c1a6))
+* **fiftyone:** evaluate image classification datasets ([cb76083](https://github.com/openfoodfacts/labelr/commit/cb76083d3a9f2dffdc78821ad4fbcbd89873a1d1))
+* save all probs in image clf prediction datasets ([523ef58](https://github.com/openfoodfacts/labelr/commit/523ef58aec1d2e0e7c800765af95100bab579dc7))
+* **train-unsloth:** improve training script ([c5532e5](https://github.com/openfoodfacts/labelr/commit/c5532e590b7028de9ea97b37f0205cc3749ce3b5))
+* **train-yolo:** support classification tasks ([03468c1](https://github.com/openfoodfacts/labelr/commit/03468c1df252b1c11fed81dedd58eb50ddf43b9e))
+
+
+### Bug Fixes
+
+* convert fiftyone CLI into a script ([c861209](https://github.com/openfoodfacts/labelr/commit/c861209eb15512548383ef3fa73713561e47f8d0))
+* **export:** use ClassLabel for image classification ([485732e](https://github.com/openfoodfacts/labelr/commit/485732e40457eb82ca9dba87143dc1864e6f5080))
+* prevent extra keys in config to prevent manual config errors ([0e72863](https://github.com/openfoodfacts/labelr/commit/0e72863e1830d0e2bb6514526b32d4f6ef90ff63))
+* remove legacy import ([52aa493](https://github.com/openfoodfacts/labelr/commit/52aa493873073769481c83129bde7452d84d07d0))
+* **train-yolo:** adapt `run_dir` variable for image cls tasks ([3fc9495](https://github.com/openfoodfacts/labelr/commit/3fc9495982449de0a5625e4e1afc24aa1ef1f84b))
+* **train-yolo:** improve CLI ([612221f](https://github.com/openfoodfacts/labelr/commit/612221f6718e21ed8316c621eb8ff120a69bf4c8))
+* **train-yolo:** improve model card for image cls tasks ([4f6e8c8](https://github.com/openfoodfacts/labelr/commit/4f6e8c8b9a05cd47279448b5a840ab096a0d3478))
+* **train-yolo:** improve training script for image classification ([79783f2](https://github.com/openfoodfacts/labelr/commit/79783f2bb8a488a88561f0accf149e4dc47f95e3))
+* **train-yolo:** order label dir by label ID during image clf training ([6266402](https://github.com/openfoodfacts/labelr/commit/626640221860f43dbb7edcf768232a57f3c7225d))
+* **train-yolo:** use 0.1 as default threshold for object detection ([05680fa](https://github.com/openfoodfacts/labelr/commit/05680fa85df256167b2e2b73a36a07d2ad710662))
+* **train-yolo:** use the right classification predictor ([dc1f3dc](https://github.com/openfoodfacts/labelr/commit/dc1f3dc3282d084b996573db279ab023859b1dc5))
+
+
+### Technical
+
+* **deps:** bump orjson from 3.11.5 to 3.11.6 ([#23](https://github.com/openfoodfacts/labelr/issues/23)) ([10d089a](https://github.com/openfoodfacts/labelr/commit/10d089a6fb717ed44d9e67ce497121d52f48558c))
+* improve docstring for create-dataset-file ([77c2a93](https://github.com/openfoodfacts/labelr/commit/77c2a936c10b61c80cfd0b1461f97caf08980528))
+
 ## [0.15.0](https://github.com/openfoodfacts/labelr/compare/v0.14.1...v0.15.0) (2026-03-02)
 
 
