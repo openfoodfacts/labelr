@@ -119,7 +119,7 @@ def train_object_detection(
         # Ensure job name is unique by adding a datestamp if date is not added to run name
         job_name = f"{job_name}-{datestamp}"
 
-    job = launch_job(
+    job = launch_gcloud_job(
         job_name=job_name,
         container_image_uri="europe-west9-docker.pkg.dev/robotoff/gcf-artifacts/train-yolo",
         env_variables=env_variables,
@@ -130,7 +130,7 @@ def train_object_detection(
     typer.echo(job)
 
 
-def launch_job(
+def launch_gcloud_job(
     job_name: str = typer.Argument(
         ...,
         help="The name of the Google Batch job that will be created. "
