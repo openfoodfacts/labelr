@@ -3,13 +3,14 @@ from typing import Annotated
 import typer
 from openfoodfacts.utils import get_logger
 
+from labelr import config as _config
 from labelr.apps import datasets as dataset_app
 from labelr.apps import directus as directus_app
 from labelr.apps import google_batch as google_batch_app
 from labelr.apps import hugging_face as hf_app
 from labelr.apps import label_studio as ls_app
 from labelr.apps import train as train_app
-from labelr import config as _config
+from labelr.apps import utils as utils_app
 
 app = typer.Typer(pretty_exceptions_show_locals=False, no_args_is_help=True)
 
@@ -109,6 +110,7 @@ app.add_typer(
 app.add_typer(
     directus_app.app, name="directus", help="Manage directus collections and items."
 )
+app.add_typer(utils_app.app, name="utils", help="Utility commands.")
 
 if __name__ == "__main__":
     app()
