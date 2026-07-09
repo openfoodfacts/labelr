@@ -1,8 +1,6 @@
 import pickle
 from pathlib import Path
 
-from openfoodfacts.types import Flavor
-
 from labelr.types import TaskType
 
 
@@ -19,6 +17,7 @@ def export_from_ultralytics_to_hf(
     repo_id: str,
     label_names: list[str],
     merge_labels: bool = False,
+    image_max_size: int | None = None,
 ) -> None:
     from labelr.export.classification import (
         export_from_ultralytics_to_hf_classification,
@@ -35,4 +34,5 @@ def export_from_ultralytics_to_hf(
             repo_id=repo_id,
             label_names=label_names,
             merge_labels=merge_labels,
+            image_max_size=image_max_size,
         )

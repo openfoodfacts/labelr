@@ -25,6 +25,7 @@ def export_from_ultralytics_to_hf_classification(
     repo_id: str,
     label_names: list[str],
     merge_labels: bool = False,
+    image_max_size: int | None = None,
 ) -> None:
     """Export an Ultralytics classification dataset to a Hugging Face dataset.
 
@@ -78,6 +79,11 @@ def export_from_ultralytics_to_hf_classification(
                     if image.mode not in ("RGB", "RGBA"):
                         image = image.convert(
                             "RGBA" if image.info.get("transparency", False) else "RGB"
+                        )
+
+                    if image_max_size is not None:
+                        image.thumbnail(
+                            (image_max_size, image_max_size), Image.Resampling.LANCZOS
                         )
 
                     # Rotate image according to exif orientation using Pillow

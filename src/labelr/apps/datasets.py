@@ -11,9 +11,9 @@ from typing import Annotated
 import typer
 from openfoodfacts.utils import get_logger
 
-from .label_studio import typer_description
-from ..config import config, check_required_field
+from ..config import check_required_field, config
 from ..types import ExportDestination, ExportSource, TaskType
+from .label_studio import typer_description
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -244,14 +244,12 @@ def export(
     from label_studio_sdk.client import LabelStudio
 
     from labelr.export.classification import export_from_ls_to_hf_classification
+    from labelr.export.common import export_from_ultralytics_to_hf
     from labelr.export.object_detection import (
         export_from_hf_to_ultralytics_object_detection,
-    )
-    from labelr.export.object_detection import (
         export_from_ls_to_hf_object_detection,
         export_from_ls_to_ultralytics_object_detection,
     )
-    from labelr.export.common import export_from_ultralytics_to_hf
 
     check_required_field("--project-id", project_id)
 
@@ -374,6 +372,7 @@ def export(
                 repo_id=typing.cast(str, repo_id),
                 merge_labels=merge_labels,
                 label_names=typing.cast(list[str], label_names_list),
+                image_max_size=image_max_size,
             )
 
 
