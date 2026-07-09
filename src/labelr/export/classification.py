@@ -5,15 +5,17 @@ import tempfile
 from pathlib import Path
 
 import datasets
+import orjson
+import tqdm
 from huggingface_hub import HfApi
 from label_studio_sdk import LabelStudio
 from PIL import Image, ImageOps
-import orjson
-import tqdm
 
 from labelr.export.common import _pickle_sample_generator
-from labelr.sample.classification import get_hf_image_classification_features
-from labelr.sample.classification import format_image_classification_sample_to_hf
+from labelr.sample.classification import (
+    format_image_classification_sample_to_hf,
+    get_hf_image_classification_features,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,8 +75,10 @@ def export_from_ultralytics_to_hf_classification(
                     image = Image.open(image_path)
                     image.load()
 
-                    if image.mode != "RGB":
-                        image = image.convert("RGB")
+                    if image.mode not in ("RGB", "RGBA"):
+                        image = image.convert(
+                            "RGBA" if image.info.get("transparency", False) else "RGB"
+                        )
 
                     # Rotate image according to exif orientation using Pillow
                     ImageOps.exif_transpose(image, in_place=True)
