@@ -11,7 +11,7 @@ dependencies = [
     "ultralytics==8.4.14",
     "albumentations",
     "labelr==0.14.0",
-    "wandb==0.22.3",
+    "wandb==0.28.0",
     "torch==2.9.0",
     "Jinja2==3.1.6",
     # ONNX Runtime is necessary to export ONNX models

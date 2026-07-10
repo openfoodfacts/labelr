@@ -4,8 +4,12 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 import typer
+from train_yolo.types import TaskType
 
 WANDB_RUN_URL = None
+
+
+app = typer.Typer(pretty_exceptions_show_locals=False, no_args_is_help=True)
 
 
 def register_wanb_run_url(trainer):
@@ -19,7 +23,8 @@ def register_wanb_run_url(trainer):
         print("Set WANDB_RUN_URL to:", WANDB_RUN_URL)
 
 
-def main(
+@app.command()
+def train(
     hf_repo_id: Annotated[
         str,
         typer.Argument(
@@ -98,7 +103,7 @@ def main(
         typer.Option(help="Root directory for the project", envvar="ROOT_DIR"),
     ] = None,
     task: Annotated[
-        Literal["detect", "classify"],
+        TaskType,
         typer.Option(
             help="The task to perform, either 'detect' for object detection or 'classify' for image classification",
             envvar="TASK",
@@ -113,6 +118,7 @@ def main(
         ),
     ] = False,
 ):
+    """Train a classification or object detection model with Ultralytics."""
     from train_yolo.utils import check_envvar, save_ultralytics_settings
 
     check_envvar()
@@ -120,30 +126,21 @@ def main(
         root_dir = Path(os.getcwd())
 
     save_ultralytics_settings(root_dir)
-    # Setting the YOLO_CONFIG_DIR environment variable to the directory containing
-    # the settings.json file, so that the ultralytics library can find it
-    os.environ["YOLO_CONFIG_DIR"] = str(root_dir)
 
     import shutil
 
     import datasets
+    import ultralytics
     import wandb
     from huggingface_hub import HfApi
-    from labelr.export.object_detection import (
-        export_from_hf_to_ultralytics_object_detection,
-    )
-    from labelr.utils import parse_hf_repo_id
-    import ultralytics
-
     from train_yolo.image_classification import (
-        ImageClassificationPredictor,
         ImageClassificationTrainer,
         ImageClassificationValidator,
-        export_from_hf_to_ultralytics_image_classification,
-        image_classification_create_predict_dataset,
     )
     from train_yolo.model_card import create_model_card
-    from train_yolo.object_detection import object_detection_create_predict_dataset
+    from train_yolo.utils import create_predict_dataset, download_dataset
+
+    from labelr.utils import parse_hf_repo_id
 
     if task == "detect":
         validation_keep_aspect_ratio = False
@@ -173,26 +170,13 @@ def main(
             )
 
     hf_repo_id, revision = parse_hf_repo_id(hf_repo_id)
-
-    # `skip_dataset_download` is an option to skip dataset download, useful
-    # for debugging locally
-    if not skip_dataset_download:
-        if task == "detect":
-            export_from_hf_to_ultralytics_object_detection(
-                repo_id=hf_repo_id,
-                output_dir=dataset_dir,
-                revision=revision,
-                download_images=False,
-                error_raise=True,
-            )
-        else:
-            export_from_hf_to_ultralytics_image_classification(
-                repo_id=hf_repo_id,
-                output_dir=dataset_dir,
-                revision=revision,
-                download_images=False,
-                error_raise=True,
-            )
+    download_dataset(
+        task=task,
+        hf_repo_id=hf_repo_id,
+        dataset_dir=dataset_dir,
+        revision=revision,
+        skip_dataset_download=skip_dataset_download,
+    )
 
     # Ultralytics expects the `data` parameter to be data.yml for object detection tasks
     # and the data directory for image classification tasks
@@ -257,24 +241,14 @@ def main(
 
     ds = datasets.load_dataset(hf_repo_id, revision=revision)
     # After training, run prediction on the full dataset and save results
-
-    if task == "detect":
-        object_detection_create_predict_dataset(
-            model=model,
-            ds=ds,
-            output_path=run_dir / "predictions.parquet",
-            imgsz=imgsz,
-        )
-    else:
-        image_classification_create_predict_dataset(
-            model=model,
-            predictor_cls=(
-                ImageClassificationPredictor if validation_keep_aspect_ratio else None
-            ),
-            ds=ds,
-            output_path=run_dir / "predictions.parquet",
-            imgsz=imgsz,
-        )
+    create_predict_dataset(
+        output_path=run_dir / "predictions.parquet",
+        task=task,
+        model=model,
+        ds=ds,
+        imgsz=imgsz,
+        validation_keep_aspect_ratio=validation_keep_aspect_ratio,
+    )
 
     typer.echo("Running validation on exported models to get metrics")
     # Run validation to get metrics for exported models
@@ -356,7 +330,105 @@ def main(
     typer.echo("Upload complete")
 
 
+@app.command()
+def generate_prediction_file(
+    hf_repo_id: Annotated[
+        str,
+        typer.Argument(
+            envvar="HF_REPO_ID",
+            help="Hugging Face repo ID of the dataset to train on. "
+            "The revision can be specified with '@revision' suffix (ex: @main).",
+        ),
+    ],
+    model_path: Annotated[
+        Path,
+        typer.Argument(
+            help="Path to the trained model. If not provided, the model will be "
+            "downloaded from `trained_model_repo_id`."
+        ),
+    ],
+    output_path: Annotated[
+        Path,
+        typer.Argument(help="Path to save the prediction file."),
+    ],
+    use_custom_augmentations: Annotated[
+        bool,
+        typer.Option(
+            help="Whether to use custom augmentations for training (image "
+            "classification only). The custom augmentation pipeline uses "
+            "Albumentations to apply LetterBox transformation at the beginning of the "
+            "pipeline, in order to keep the original aspect ratio of the image while "
+            "preventing information loss. By default, the standard augmentations "
+            "provided by the Ultralytics YOLO library are used.",
+            envvar="USE_CUSTOM_AUGMENTATIONS",
+        ),
+    ] = False,
+    validation_keep_aspect_ratio: Annotated[
+        bool,
+        typer.Option(
+            help="Whether to keep the aspect ratio of images during validation "
+            "(image classification only). Always True if `use_custom_augmentations` "
+            "is True.",
+            envvar="VALIDATION_KEEP_ASPECT_RATIO",
+        ),
+    ] = False,
+    imgsz: Annotated[int, typer.Option(envvar="IMGSZ")] = 640,
+    skip_dataset_download: Annotated[
+        bool, typer.Option(help="Skip dataset download step, only for debugging")
+    ] = False,
+    root_dir: Annotated[
+        Path | None,
+        typer.Option(help="Root directory for the project", envvar="ROOT_DIR"),
+    ] = None,
+    task: Annotated[
+        Literal["detect", "classify"],
+        typer.Option(
+            help="The task to perform, either 'detect' for object detection or 'classify' for image classification",
+            envvar="TASK",
+        ),
+    ] = "detect",
+):
+    from train_yolo.utils import save_ultralytics_settings
+
+    if root_dir is None:
+        root_dir = Path(os.getcwd())
+
+    save_ultralytics_settings(root_dir)
+
+    import datasets
+    import ultralytics
+    from train_yolo.utils import create_predict_dataset, download_dataset
+
+    from labelr.utils import parse_hf_repo_id
+
+    if task == "detect":
+        validation_keep_aspect_ratio = False
+
+    elif task == "classify" and use_custom_augmentations:
+        validation_keep_aspect_ratio = True
+
+    dataset_dir = root_dir / "datasets"
+
+    hf_repo_id, revision = parse_hf_repo_id(hf_repo_id)
+    download_dataset(
+        task=task,
+        hf_repo_id=hf_repo_id,
+        dataset_dir=dataset_dir,
+        revision=revision,
+        skip_dataset_download=skip_dataset_download,
+    )
+
+    model = ultralytics.YOLO(model_path, task=task)
+    ds = datasets.load_dataset(hf_repo_id, revision=revision)
+    create_predict_dataset(
+        output_path=output_path,
+        task=task,
+        model=model,
+        ds=ds,
+        imgsz=imgsz,
+        validation_keep_aspect_ratio=validation_keep_aspect_ratio,
+    )
+
+
 if __name__ == "__main__":
-    app = typer.Typer(pretty_exceptions_show_locals=False)
-    app.command()(main)
     app()
