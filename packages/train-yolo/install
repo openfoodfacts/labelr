@@ -1,0 +1,35 @@
+#!/usr/bin/env -S uv tool run --with "ansible==14.1.0" --from ansible-core@2.21.1 ansible-playbook -D -K -v
+#
+# Usage:
+# - Assuming this file is called 'install', and you had already chmod +x install
+# ./install -i 52.10.40.24, -u username
+# ./install -CD # For dry-run
+---
+- hosts: all
+  tasks:
+    - name: Update apt cache
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 21600
+    - name: Install packages through apt
+      become: true
+      ansible.builtin.apt:
+        name:
+          - tmux
+          - git
+          - ffmpeg
+          - libsm6
+          - libxext6
+        state: present
+    - name: Install uv by launching the install script
+      ansible.builtin.shell:
+        cmd: set -o pipefail && curl -LsSf https://astral.sh/uv/install.sh | sh
+        executable: /bin/bash
+        # Don't launch if '/home/{{ ansible_user }}/.local/bin/uv' exists
+        creates: "/home/{{ ansible_user }}/.local/bin/uv"
+    # Clone https://github.com/openfoodfacts/labelr.git
+    - name: Clone labelr repository
+      ansible.builtin.git:
+        repo: https://github.com/openfoodfacts/labelr.git
+        dest: "/home/{{ ansible_user }}/labelr"
