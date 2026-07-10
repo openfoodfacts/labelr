@@ -4,7 +4,7 @@
 #     "fiftyone==1.18.0",
 #     "huggingface_hub",
 #     "typer",
-#     "protobuf"
+#     "protobuf",
 #     "tqdm",
 # ]
 # ///
