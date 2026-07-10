@@ -1,21 +1,23 @@
 # /// script
 # dependencies = [
 #     "datasets",
-#     "fiftyone",
+#     "fiftyone==1.18.0",
 #     "huggingface_hub",
 #     "typer",
+#     "protobuf"
+#     "tqdm",
 # ]
 # ///
 
-from pathlib import Path
 import tempfile
+from pathlib import Path
 from typing import Annotated, Literal
 
 import datasets
 import fiftyone as fo
-from huggingface_hub import hf_hub_download
-
+import tqdm
 import typer
+from huggingface_hub import hf_hub_download
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -109,6 +111,7 @@ def _visualize(
 ):
     hf_repo_id, hf_revision = parse_hf_repo_id(hf_repo_id)
 
+    typer.echo(f"Downloading predictions from {hf_repo_id}...")
     file_path = hf_hub_download(
         hf_repo_id,
         filename="predictions.parquet",
@@ -124,6 +127,7 @@ def _visualize(
             raise ValueError("Label names must be provided for classification models.")
         features = generate_image_classification_prediction_features(label_names)
 
+    typer.echo("Loading predictions into FiftyOne dataset...")
     prediction_dataset = datasets.load_dataset(
         "parquet",
         data_files=str(file_path),
@@ -134,9 +138,12 @@ def _visualize(
 
     with tempfile.TemporaryDirectory() as tmpdir_str:
         tmp_dir = Path(tmpdir_str)
-        for i, hf_sample in enumerate(prediction_dataset):
+        for i, hf_sample in enumerate(
+            tqdm.tqdm(prediction_dataset, desc="Loading predictions")
+        ):
             image = hf_sample["image"]
-            image_path = tmp_dir / f"{i}.jpg"
+            image_extension = image.format.lower()
+            image_path = tmp_dir / f"{i}.{image_extension}"
             image.save(image_path)
             split = hf_sample["split"]
             sample = fo.Sample(
@@ -241,6 +248,12 @@ def visualize(
     if dataset_name is None:
         dataset_name = hf_repo_id.replace("/", "-").replace("@", "-")
 
+    typer.echo("Cleaning up existing datasets...")
+    for ds in fo.list_datasets():
+        typer.echo(f"Deleting dataset: {ds}")
+        fo.load_dataset(ds).delete()
+
+    typer.echo("Visualizing...")
     _visualize(
         task=task,
         label_names=label_names.split(",") if label_names else None,
