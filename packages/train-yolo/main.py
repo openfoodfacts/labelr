@@ -248,6 +248,7 @@ def train(
         ds=ds,
         imgsz=imgsz,
         validation_keep_aspect_ratio=validation_keep_aspect_ratio,
+        batch=batch,
     )
 
     typer.echo("Running validation on exported models to get metrics")
@@ -387,6 +388,7 @@ def generate_prediction_file(
             envvar="TASK",
         ),
     ] = "detect",
+    batch: Annotated[int, typer.Option(envvar="BATCH")] = 16,
 ):
     from train_yolo.utils import save_ultralytics_settings
 
@@ -427,6 +429,7 @@ def generate_prediction_file(
         ds=ds,
         imgsz=imgsz,
         validation_keep_aspect_ratio=validation_keep_aspect_ratio,
+        batch=batch,
     )
 
 

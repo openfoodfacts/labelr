@@ -16,6 +16,7 @@ import ultralytics
 from albumentations.pytorch.transforms import ToTensorV2
 from datasets import ClassLabel, Dataset, Features, Sequence, Value
 from datasets import Image as HFImage
+from more_itertools import chunked
 from openfoodfacts.images import download_image
 from PIL import Image, ImageOps
 from ultralytics.data.dataset import ClassificationDataset
@@ -268,6 +269,7 @@ def image_classification_create_predict_dataset(
     output_path: Path,
     imgsz: int,
     conf: float = 0.25,
+    batch: int = 16,
 ):
     """Create a Parquet dataset with model predictions."""
     # Run the model on the full dataset and save them as a Hugging Face dataset
@@ -280,42 +282,47 @@ def image_classification_create_predict_dataset(
     with tempfile.TemporaryDirectory() as tmpdirname_str:
         tmp_dir = Path(tmpdirname_str)
         for split_name in ds.keys():
-            for i, sample in tqdm.tqdm(enumerate(ds[split_name])):
-                image_id = sample["image_id"]
-                image = sample["image"]
-                res = model.predict(
+            typer.echo(f"Processing split: {split_name}")
+            offset = 0
+            for samples in tqdm.tqdm(chunked(ds[split_name], batch), desc="batch"):
+                images = [sample["image"] for sample in samples]
+                results = model.predict(
                     predictor=predictor_cls,
-                    source=image,
+                    source=images,
                     imgsz=imgsz,
                     save=False,
                     verbose=False,
                     conf=conf,
-                )[0]
-                probs = res.probs.data.cpu().numpy()
-                label_id = probs.argmax().item()
-                confidence = probs[label_id].item()
-                record = {
-                    "image": image,
-                    "image_id": image_id,
-                    "detected": {
-                        "label": label_id,
-                        "confidence": confidence,
-                        "probs": probs.tolist(),
-                    },
-                    "split": split_name,
-                    "label": sample["label"],
-                }
+                )
+                for i, (sample, result) in enumerate(
+                    zip(samples, results, strict=True)
+                ):
+                    probs = result.probs.data.cpu().numpy()
+                    label_id = probs.argmax().item()
+                    confidence = probs[label_id].item()
+                    record = {
+                        "image": sample["image"],
+                        "image_id": sample["image_id"],
+                        "detected": {
+                            "label": label_id,
+                            "confidence": confidence,
+                            "probs": probs.tolist(),
+                        },
+                        "split": split_name,
+                        "label": sample["label"],
+                    }
 
-                if "width" in sample:
-                    record["width"] = sample["width"]
-                if "height" in sample:
-                    record["height"] = sample["height"]
+                    if "width" in sample:
+                        record["width"] = sample["width"]
+                    if "height" in sample:
+                        record["height"] = sample["height"]
+                    if "meta" in sample:
+                        record["meta"] = sample["meta"]
 
-                if "meta" in sample:
-                    record["meta"] = sample["meta"]
-
-                with open(tmp_dir / f"{i:06d}.pkl", "wb") as f:
-                    pickle.dump(record, f)
+                    record_id = offset + i
+                    with open(tmp_dir / f"{record_id:06d}.pkl", "wb") as f:
+                        pickle.dump(record, f)
+                    offset += len(samples)
 
         # Build a Hugging Face dataset where each example contains the plotted
         # image

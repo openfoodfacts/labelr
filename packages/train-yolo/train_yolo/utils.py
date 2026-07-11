@@ -61,6 +61,7 @@ def create_predict_dataset(
     ds: Dataset,
     imgsz: int,
     validation_keep_aspect_ratio: bool,
+    batch: int,
 ) -> None:
     """Run prediction on the full dataset and save results as a parquet file.
 
@@ -71,6 +72,7 @@ def create_predict_dataset(
         ds: The dataset to run prediction on.
         imgsz: The image size to use for prediction.
         validation_keep_aspect_ratio: Whether to keep aspect ratio during validation.
+        batch: The batch size to use for prediction.
     """
     if task == "detect":
         object_detection_create_predict_dataset(
@@ -78,6 +80,7 @@ def create_predict_dataset(
             ds=ds,
             output_path=output_path,
             imgsz=imgsz,
+            batch=batch,
         )
     else:
         image_classification_create_predict_dataset(
@@ -88,6 +91,7 @@ def create_predict_dataset(
             ds=ds,
             output_path=output_path,
             imgsz=imgsz,
+            batch=batch,
         )
 
 

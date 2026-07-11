@@ -18,6 +18,7 @@ dependencies = [
     "onnxruntime-gpu==1.23.2",
     "onnx==1.19.1",
     "onnxslim==0.1.72",
+    "more-itertools>=10.8.0",
 ]
 
 [tool.uv.sources]

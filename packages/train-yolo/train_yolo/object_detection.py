@@ -7,9 +7,11 @@ import tqdm
 import typer
 import ultralytics
 from datasets import Dataset
+from more_itertools import chunked
+from PIL import Image
+
 from labelr.dataset_features import OBJECT_DETECTION_DS_PREDICTION_FEATURES
 from labelr.export.common import _pickle_sample_generator
-from PIL import Image
 
 
 def object_detection_create_predict_dataset(
@@ -18,6 +20,7 @@ def object_detection_create_predict_dataset(
     output_path: Path,
     imgsz: int,
     conf: float = 0.1,
+    batch: int = 16,
 ):
     """Create a Parquet dataset with model predictions."""
     # Run the model on the full dataset, draw bounding boxes on images, and
@@ -29,57 +32,66 @@ def object_detection_create_predict_dataset(
     with tempfile.TemporaryDirectory() as tmpdirname_str:
         tmp_dir = Path(tmpdirname_str)
         for split_name in ds.keys():
-            for i, sample in tqdm.tqdm(enumerate(ds[split_name])):
-                image_id = sample["image_id"]
-                image = sample["image"]
-                res = model.predict(
-                    source=image,
+            typer.echo(f"Processing split: {split_name}")
+            offset = 0
+            for samples in tqdm.tqdm(chunked(ds[split_name], batch), desc="batch"):
+                images = [sample["image"] for sample in samples]
+                results = model.predict(
+                    source=images,
                     imgsz=imgsz,
                     save=False,
                     verbose=False,
                     conf=conf,
-                )[0]
-                # res.plot() returns an image (numpy array) with boxes drawn
-                plotted = res.plot()
-                # convert BGR to RGB
-                plotted = plotted[:, :, ::-1]
-                pil_img = Image.fromarray(plotted)
+                )
+                for i, (sample, result) in enumerate(
+                    zip(samples, results, strict=True)
+                ):
+                    # res.plot() returns an image (numpy array) with boxes drawn
+                    plotted = result.plot()
+                    # convert BGR to RGB
+                    plotted = plotted[:, :, ::-1]
+                    pil_img = Image.fromarray(plotted)
 
-                boxes = res.boxes
-                # Convert ultralytics xyxyn format to
-                # (y_min, x_min, y_max, x_max)
-                xyxyn = [
-                    (y_min, x_min, y_max, x_max)
-                    for (x_min, y_min, x_max, y_max) in boxes.xyxyn.cpu()
-                    .numpy()
-                    .tolist()
-                ]
-                record = {
-                    "image": image,
-                    "image_with_predictions": pil_img,
-                    "detected": {
-                        "bbox": xyxyn,
-                        "category_id": boxes.cls.cpu().numpy().astype("int64").tolist(),
-                        "category_name": [
-                            model.names[int(c)] for c in boxes.cls.cpu().numpy()
-                        ],
-                        "confidence": boxes.conf.cpu().numpy().tolist(),
-                    },
-                    "split": split_name,
-                    "image_id": image_id,
-                    "objects": sample["objects"],
-                }
+                    boxes = result.boxes
+                    # Convert ultralytics xyxyn format to
+                    # (y_min, x_min, y_max, x_max)
+                    xyxyn = [
+                        (y_min, x_min, y_max, x_max)
+                        for (x_min, y_min, x_max, y_max) in boxes.xyxyn.cpu()
+                        .numpy()
+                        .tolist()
+                    ]
+                    record = {
+                        "image": sample["image"],
+                        "image_with_predictions": pil_img,
+                        "detected": {
+                            "bbox": xyxyn,
+                            "category_id": boxes.cls.cpu()
+                            .numpy()
+                            .astype("int64")
+                            .tolist(),
+                            "category_name": [
+                                model.names[int(c)] for c in boxes.cls.cpu().numpy()
+                            ],
+                            "confidence": boxes.conf.cpu().numpy().tolist(),
+                        },
+                        "split": split_name,
+                        "image_id": sample["image_id"],
+                        "objects": sample["objects"],
+                    }
 
-                if "width" in sample:
-                    record["width"] = sample["width"]
-                if "height" in sample:
-                    record["height"] = sample["height"]
+                    if "width" in sample:
+                        record["width"] = sample["width"]
+                    if "height" in sample:
+                        record["height"] = sample["height"]
+                    if "meta" in sample:
+                        record["meta"] = sample["meta"]
 
-                if "meta" in sample:
-                    record["meta"] = sample["meta"]
+                    record_idx = offset + i
+                    with open(tmp_dir / f"{record_idx:06d}.pkl", "wb") as f:
+                        pickle.dump(record, f)
 
-                with open(tmp_dir / f"{i:06d}.pkl", "wb") as f:
-                    pickle.dump(record, f)
+                    offset += len(samples)
 
         # Build a Hugging Face dataset where each example contains the plotted
         # image
