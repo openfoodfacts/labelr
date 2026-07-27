@@ -445,5 +445,83 @@ def generate_prediction_file(
     )
 
 
+@app.command()
+def predict_from_webdataset(
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            envvar="OUTPUT_PATH",
+            help="The JSONL path to save the predictions.",
+        ),
+    ],
+    webdataset_url: Annotated[
+        str,
+        typer.Argument(
+            help="The URL of the webdataset to use as source.",
+        ),
+    ],
+    model_repo_id: Annotated[
+        str,
+        typer.Option(
+            envvar="MODEL_REPO_ID",
+            help="The Hugging Face repository ID of the model to use.",
+        ),
+    ],
+    model_path: Annotated[
+        str,
+        typer.Option(
+            envvar="MODEL_PATH",
+            help="The path of the model to use in the HF repository.",
+        ),
+    ] = "weights/best.pt",
+    batch: Annotated[int, typer.Option(envvar="BATCH")] = 128,
+    max_workers: int = 8,
+):
+    """Run a Yolo model from images saved as webdataset."""
+    import orjson
+    import ultralytics
+    from huggingface_hub import hf_hub_download
+    from train_yolo.utils import get_webdataset_shard_count, predict_from_webdataset
+
+    from labelr.utils import parse_hf_repo_id
+
+    hf_token = os.environ.get("HF_TOKEN")
+
+    if not hf_token:
+        typer.echo(
+            "HF_TOKEN not set, using anonymous access. You may be rate-limited.",
+            err=True,
+        )
+    else:
+        typer.echo("Adding credentials to webdataset URL")
+        webdataset_url = (
+            f"pipe:curl -s -L {webdataset_url} -H 'Authorization:Bearer {hf_token}'"
+        )
+
+    model_repo_id, revision = parse_hf_repo_id(model_repo_id)
+    config_path = hf_hub_download(
+        model_repo_id, filename="config.json", revision=revision
+    )
+    config = orjson.loads(Path(config_path).read_bytes())
+    task = config["task"]
+    label_names = config["labels"]
+    imgsz = config["imgsz"]
+
+    model_path = hf_hub_download(model_repo_id, filename=model_path, revision=revision)
+    model = ultralytics.YOLO(model_path, task=task)
+    num_workers = min(get_webdataset_shard_count(webdataset_url), max_workers)
+    typer.echo(f"Using {num_workers} workers")
+    predict_from_webdataset(
+        output_path=output_path,
+        task=task,
+        model=model,
+        webdataset_url=webdataset_url,
+        imgsz=imgsz,
+        batch=batch,
+        label_names=label_names,
+        num_workers=num_workers,
+    )
+
+
 if __name__ == "__main__":
     app()

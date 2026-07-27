@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from pathlib import Path
 
 import ultralytics
@@ -12,8 +13,12 @@ from train_yolo.image_classification import (
     ImageClassificationPredictor,
     export_from_hf_to_ultralytics_image_classification,
     image_classification_create_predict_dataset,
+    image_classification_predict_from_webdataset,
 )
-from train_yolo.object_detection import object_detection_create_predict_dataset
+from train_yolo.object_detection import (
+    object_detection_create_predict_dataset,
+    object_detection_predict_from_webdataset,
+)
 from train_yolo.types import TaskType
 
 
@@ -95,6 +100,49 @@ def create_predict_dataset(
         )
 
 
+def predict_from_webdataset(
+    output_path: Path,
+    task: TaskType,
+    model: ultralytics.YOLO,
+    webdataset_url: str,
+    imgsz: int,
+    batch: int,
+    label_names: list[str],
+    num_workers: int,
+) -> None:
+    """Run prediction on a webdataset URL.
+
+    Args:
+        output_path: The path to save the predictions to (JSONL file).
+        task: The task type, either "detect" or "classify".
+        model: The trained Ultralytics YOLO model.
+        webdataset_url: The URL of the webdataset to run prediction on.
+        imgsz: The image size to use for prediction.
+        batch: The batch size to use for prediction.
+        label_names: The list of label names to use for prediction.
+    """
+    if task == "detect":
+        object_detection_predict_from_webdataset(
+            model=model,
+            webdataset_url=webdataset_url,
+            output_path=output_path,
+            imgsz=imgsz,
+            batch=batch,
+            label_names=label_names,
+            num_workers=num_workers,
+        )
+    else:
+        image_classification_predict_from_webdataset(
+            model=model,
+            webdataset_url=webdataset_url,
+            output_path=output_path,
+            imgsz=imgsz,
+            batch=batch,
+            label_names=label_names,
+            num_workers=num_workers,
+        )
+
+
 def generate_ultralytics_settings(root_dir: Path) -> dict:
     return {
         "settings_version": "0.0.6",
@@ -144,3 +192,20 @@ def check_envvar():
         raise ValueError(
             "WANDB_API_KEY environment variable not set. This is required to log training runs to Weights & Biases."
         )
+
+
+def get_webdataset_shard_count(url: str) -> int:
+    """Return the number of shards in a webdataset URL.
+
+    A webdataset URL has the format 'https://huggingface.co/datasets/timm/imagenet-12k-wds/resolve/main/imagenet12k-train-{{0000..1023}}.tar'
+    with the shard indices specified by {{0000..1023}}.
+
+    This function parses the URL and returns the number of shards.
+    """
+    pattern = re.compile(r"\{\{(\d+)\.\.(\d+)\}\}")
+    match = pattern.search(url)
+    if not match:
+        return 1
+    start_idx = int(match.group(1))
+    end_idx = int(match.group(2))
+    return end_idx - start_idx + 1

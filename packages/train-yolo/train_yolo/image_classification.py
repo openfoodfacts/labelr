@@ -4,15 +4,18 @@ import pickle
 import tempfile
 import typing
 from pathlib import Path
+from typing import Callable
 
 import albumentations as A
 import cv2
 import datasets
 import numpy as np
+import orjson
 import torch
 import tqdm
 import typer
 import ultralytics
+import webdataset as wds
 from albumentations.pytorch.transforms import ToTensorV2
 from datasets import ClassLabel, Dataset, Features, Sequence, Value
 from datasets import Image as HFImage
@@ -335,3 +338,58 @@ def image_classification_create_predict_dataset(
         )
         output_ds.to_parquet(output_path)
         typer.echo(f"Saved Hugging Face dataset as Parquet file to: {output_path}")
+
+
+def webdataset_map(sample, transform_func: Callable):
+    image = sample["webp"]
+    image_id = sample["__key__"]
+    extra = {}
+    cv2_image = cv2.imdecode(np.frombuffer(image, np.uint8), cv2.IMREAD_COLOR)
+    transformed_image = transform_func(image=cv2_image)["image"]
+    return {"image": transformed_image, "image_id": image_id, **extra}
+
+
+def image_classification_predict_from_webdataset(
+    model: ultralytics.YOLO,
+    webdataset_url: str,
+    label_names: list[str],
+    output_path: Path,
+    imgsz: int,
+    conf: float = 0.25,
+    batch: int = 16,
+    num_workers: int = 4,
+):
+    """Run prediction from webdataset URLs."""
+    if output_path.exists():
+        raise ValueError(f"Output JSONL file already exists: {output_path}")
+
+    transform_func = get_predict_transform(imgsz)
+    map_func = functools.partial(webdataset_map, transform_func=transform_func)
+    ds = wds.WebDataset(webdataset_url, shardshuffle=False).map(map_func)
+    data_loader = wds.WebLoader(
+        ds.batched(batch), batch_size=None, num_workers=num_workers
+    )
+    with output_path.open("wb") as f:
+        for samples in tqdm.tqdm(data_loader, desc="batch"):
+            images = samples["image"]
+            image_ids = samples["image_id"]
+            results = model.predict(
+                source=images,
+                imgsz=imgsz,
+                save=False,
+                verbose=False,
+                conf=conf,
+            )
+            for i in range(len(images)):
+                result = results[i]
+                probs = result.probs.data.cpu().numpy()
+                label_id = probs.argmax().item()
+                confidence = probs[label_id].item()
+                record = {
+                    "image_id": image_ids[i],
+                    "label": label_id,
+                    "label_name": label_names[label_id],
+                    "confidence": confidence,
+                    "probs": probs.tolist(),
+                }
+                f.write(orjson.dumps(record) + b"\n")

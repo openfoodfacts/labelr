@@ -19,6 +19,7 @@ dependencies = [
     "onnx==1.19.1",
     "onnxslim==0.1.72",
     "more-itertools>=10.8.0",
+    "webdataset>=1.0.2",
 ]
 
 [tool.uv.sources]
