@@ -130,6 +130,7 @@ def train(
     import shutil
 
     import datasets
+    import orjson
     import ultralytics
     import wandb
     from huggingface_hub import HfApi
@@ -271,6 +272,17 @@ def train(
         # Saving metrics as JSON file
         suffix = "" if format_name == "pytorch" else f"_{format_name}"
         (run_dir / f"metrics{suffix}.json").write_text(metrics.to_json())
+        label_names = model.names
+
+    (run_dir / "config.json").write_bytes(
+        orjson.dumps(
+            {
+                "labels": label_names,
+                "task": task,
+                "use_custom_augmentations": use_custom_augmentations,
+            }
+        )
+    )
 
     typer.echo(f"Uploading trained model to Hugging Face repo: {trained_model_repo_id}")
     hf_api = HfApi()
